@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 
-const API = "http://localhost:8000";
+const API = "https://stockwise-76dt.onrender.com";
 
 const C = {
   bg:"#f9fafb", bg2:"#f3f4f6", card:"#ffffff",
