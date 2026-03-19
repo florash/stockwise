@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 
-const API = "https://stockwise-76dt.onrender.com";
+const API = "http://localhost:8000";
+
 const C = {
   bg:"#f9fafb", bg2:"#f3f4f6", card:"#ffffff",
   border:"#e5e7eb", border2:"#d1d5db",
@@ -308,6 +309,12 @@ export default function App() {
     @keyframes fu{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
     .fu{animation:fu 0.24s ease forwards}
     @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    @media(max-width:768px){
+      .mobile-hide{display:none!important}
+      .mobile-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+      .mobile-bottom-nav{display:flex!important}
+      main{padding-bottom:70px!important}
+    }
   `;
 
   return (
@@ -315,7 +322,7 @@ export default function App() {
       <style>{css}</style>
 
       {/* HEADER */}
-      <header style={{ background:C.card, borderBottom:`1px solid ${C.border}`, padding:"0 28px", height:56, display:"flex", alignItems:"center", gap:16, position:"sticky", top:0, zIndex:50, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
+      <header style={{ background:C.card, borderBottom:`1px solid ${C.border}`, padding:"0 16px", height:56, display:"flex", alignItems:"center", gap:12, position:"sticky", top:0, zIndex:50, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
         <div style={{ display:"flex", alignItems:"center", gap:9, flexShrink:0 }}>
           <div style={{ width:28, height:28, background:C.accent, borderRadius:7, display:"flex", alignItems:"center", justifyContent:"center" }}>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -342,7 +349,7 @@ export default function App() {
         {searching && <span style={{ fontSize:12, color:C.text3, flexShrink:0 }}>{t.searching}</span>}
         {searchErr  && <span style={{ fontSize:12, color:C.red,   flexShrink:0 }}>{searchErr}</span>}
 
-        <nav style={{ display:"flex", gap:1, marginLeft:"auto" }}>
+        <nav className="mobile-hide" style={{ display:"flex", gap:1, marginLeft:"auto" }}>
           {[["market",t.tabMarket],["watchlist",t.tabWatch],["etf",t.tabEtf]].map(([id,lbl]) => (
             <button key={id} className="tab" onClick={() => setTab(id)}
               style={{ padding:"6px 16px", fontSize:14, fontWeight:tab===id?600:400, color:tab===id?C.text:C.text3, borderBottom:tab===id?`2px solid ${C.text}`:"2px solid transparent", paddingBottom:tab===id?4:6 }}>
@@ -369,7 +376,7 @@ export default function App() {
       </header>
 
       {/* TICKER */}
-      <div style={{ background:C.card, borderBottom:`1px solid ${C.border}`, display:"flex", overflowX:"auto" }}>
+      <div className="mobile-scroll" style={{ background:C.card, borderBottom:`1px solid ${C.border}`, display:"flex", overflowX:"auto" }}>
         {INDICES(t).map(idx => (
           <div key={idx.name} style={{ display:"flex", gap:8, alignItems:"center", padding:"8px 20px", borderRight:`1px solid ${C.border}`, flexShrink:0 }}>
             <span style={{ fontSize:11, color:C.text4, fontWeight:500 }}>{idx.name}</span>
@@ -384,7 +391,7 @@ export default function App() {
         )}
       </div>
 
-      <main style={{ maxWidth:1320, margin:"0 auto", padding:"24px 28px" }}>
+      <main style={{ maxWidth:1320, margin:"0 auto", padding:"16px 12px" }}>
 
         {/* ERROR */}
         {error && (
@@ -423,12 +430,12 @@ export default function App() {
                       {col:null,    label:t.colName,     align:"left"},
                       {col:"price", label:t.colPrice,    align:"right", w:"100px"},
                       {col:"pct",   label:t.colChange,   align:"right", w:"110px"},
-                      {col:null,    label:t.colTrend,    align:"center",w:"90px"},
-                      {col:"vol",   label:t.colVol,      align:"right", w:"90px"},
+                      {col:null,    label:t.colTrend,    align:"center",w:"90px", mhide:true},
+                      {col:"vol",   label:t.colVol,      align:"right", w:"90px", mhide:true},
                       {col:"cap",   label:t.colCap,      align:"right", w:"90px"},
                       {col:null,    label:"",             align:"center",w:"40px"},
                     ].map((h,i) => (
-                      <th key={i} className={h.col?"th":""} onClick={h.col ? () => setSort2(h.col) : undefined}
+                      <th key={i} className={`${h.col?"th":""} ${h.mhide?"mobile-hide":""}`} onClick={h.col ? () => setSort2(h.col) : undefined}
                         style={{ padding:"10px 14px", fontSize:11, fontWeight:600, color:C.text3, textAlign:h.align, letterSpacing:"0.05em", textTransform:"uppercase", width:h.w||"auto" }}>
                         {h.label}{h.col && <Arr col={h.col}/>}
                       </th>
@@ -468,10 +475,10 @@ export default function App() {
                           <td style={{ padding:"13px 14px", textAlign:"right" }}>
                             <span style={chgBadge(s.pct)}>{s.pct>=0?"▲":"▼"} {Math.abs(s.pct).toFixed(2)}%</span>
                           </td>
-                          <td style={{ padding:"13px 14px", textAlign:"center" }}>
+                          <td className="mobile-hide" style={{ padding:"13px 14px", textAlign:"center" }}>
                             <Spark symbol={s.symbol} price={s.price} pos={s.pct>=0}/>
                           </td>
-                          <td style={{ padding:"13px 14px", textAlign:"right", fontSize:12, color:C.text3, fontFamily:"'DM Mono',monospace" }}>{s.vol}</td>
+                          <td className="mobile-hide" style={{ padding:"13px 14px", textAlign:"right", fontSize:12, color:C.text3, fontFamily:"'DM Mono',monospace" }}>{s.vol}</td>
                           <td style={{ padding:"13px 14px", textAlign:"right", fontSize:13, fontWeight:600, color:C.text2, fontFamily:"'DM Mono',monospace" }}>{s.cap}</td>
                           <td style={{ padding:"13px 14px", textAlign:"center" }} onClick={e => { e.stopPropagation(); toggleWatch(s.symbol); }}>
                             <span className="star" style={{ fontSize:17, color:watch.includes(s.symbol)?C.gold:C.border2 }}>
@@ -500,7 +507,7 @@ export default function App() {
                 <p style={{ fontSize:14 }}>{t.watchEmpty}</p>
               </div>
             ) : (
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap:14 }}>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))", gap:12 }}>
                 {allStocks.filter(s => watch.includes(s.symbol)).map(s => (
                   <div key={s.symbol} className="hcard" onClick={() => openModal(s)} style={{ ...cardBase, padding:18 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
@@ -568,7 +575,7 @@ export default function App() {
       {modal && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.25)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:20, backdropFilter:"blur(4px)" }}
           onClick={() => setModal(null)}>
-          <div className="fu" style={{ ...cardBase, width:"100%", maxWidth:580, maxHeight:"90vh", overflowY:"auto", boxShadow:"0 20px 60px rgba(0,0,0,0.15)" }}
+          <div className="fu" style={{ ...cardBase, width:"100%", maxWidth:580, maxHeight:"95vh", overflowY:"auto", boxShadow:"0 20px 60px rgba(0,0,0,0.15)", margin:"0 4px" }}
             onClick={e => e.stopPropagation()}>
             <div style={{ padding:"22px 22px 0" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:18 }}>
@@ -667,6 +674,18 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* MOBILE BOTTOM NAV */}
+      <nav style={{ display:"none", position:"fixed", bottom:0, left:0, right:0, background:C.card, borderTop:`1px solid ${C.border}`, padding:"8px 0", zIndex:40, justifyContent:"space-around" }}
+        className="mobile-bottom-nav">
+        {[["market",t.tabMarket,"📊"],["watchlist",t.tabWatch,"⭐"],["etf",t.tabEtf,"📈"]].map(([id,lbl,icon])=>(
+          <button key={id} onClick={()=>setTab(id)}
+            style={{ background:"none", border:"none", display:"flex", flexDirection:"column", alignItems:"center", gap:2, cursor:"pointer", padding:"4px 16px", color:tab===id?C.accent:C.text4, fontFamily:"inherit" }}>
+            <span style={{ fontSize:20 }}>{icon}</span>
+            <span style={{ fontSize:10, fontWeight:tab===id?600:400 }}>{lbl}</span>
+          </button>
+        ))}
+      </nav>
 
       {/* API KEY MODAL */}
       {showKey && (
