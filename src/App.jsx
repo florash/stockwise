@@ -27,7 +27,7 @@ const T = {
   zh:{
     brand:"Stockwise",
     searchPh:"搜索股票代码，如 AAPL、BHP…",
-    simulated:"延迟行情", tabMarket:"市场", tabWatch:"自选股", tabEtf:"ETF", tabPortfolio:"持仓",
+    simulated:"延迟行情", tabMarket:"市场", tabWatch:"自选股", tabEtf:"ETF", tabPortfolio:"持仓", tabNews:"新闻",
     all:"全部", us:"🇺🇸 美股", asx:"🇦🇺 澳股", stocks:"个股", etf:"ETF",
     results:(n)=>`${n} 条结果`,
     colSymbol:"代码 / 名称", colPrice:"价格", colChange:"涨跌幅",
@@ -53,12 +53,15 @@ const T = {
     pfCancel:"取消", pfSave:"保存",
     pfCost:"成本", pfNow:"现价", pfPnl:"盈亏", pfWeight:"仓位",
     pfNoPrice:"价格加载中…",
+    newsTitle:"财经新闻", newsSub:"实时市场资讯",
+    newsAll:"全部", newsUS:"🇺🇸 美股", newsASX:"🇦🇺 澳股",
+    newsLoading:"加载新闻中…", newsEmpty:"暂无新闻",
     aiPrompt:(s)=>`你是一位专业的证券分析师。请用简洁的中文（约200字）分析：\n股票：${s.name}（${s.symbol}）| 市场：${s.mkt} | 板块：${s.sector}\n价格：${s.price} | 涨跌：${s.pct}% | 市值：${s.cap}${s.pe?` | P/E：${s.pe}`:"（ETF）"}\n\n请简明分析：1）近期表现 2）核心投资逻辑 3）主要风险。专业客观。`,
   },
   en:{
     brand:"Stockwise",
     searchPh:"Search stocks / ETFs, e.g. AAPL, BHP…",
-    simulated:"Delayed", tabMarket:"Market", tabWatch:"Watchlist", tabEtf:"ETFs", tabPortfolio:"Portfolio",
+    simulated:"Delayed", tabMarket:"Market", tabWatch:"Watchlist", tabEtf:"ETFs", tabPortfolio:"Portfolio", tabNews:"News",
     all:"All", us:"🇺🇸 US", asx:"🇦🇺 ASX", stocks:"Stocks", etf:"ETF",
     results:(n)=>`${n} results`,
     colSymbol:"Symbol / Name", colPrice:"Price", colChange:"Change",
@@ -84,6 +87,9 @@ const T = {
     pfCancel:"Cancel", pfSave:"Save",
     pfCost:"Cost", pfNow:"Price", pfPnl:"P&L", pfWeight:"Weight",
     pfNoPrice:"Loading price…",
+    newsTitle:"Market News", newsSub:"Live financial headlines",
+    newsAll:"All", newsUS:"🇺🇸 US", newsASX:"🇦🇺 ASX",
+    newsLoading:"Loading news…", newsEmpty:"No news available",
     aiPrompt:(s)=>`You are a professional securities analyst. Provide a concise analysis (~150 words) of:\nStock: ${s.name} (${s.symbol}) | Market: ${s.mkt} | Sector: ${s.sector}\nPrice: ${s.price} | Change: ${s.pct}% | Mkt Cap: ${s.cap}${s.pe?` | P/E: ${s.pe}`:" (ETF)"}\n\nCover: 1) Recent performance 2) Core investment thesis 3) Key risks. Professional and objective.`,
   },
 };
@@ -202,6 +208,10 @@ export default function App(){
   const [pfError,setPfError] = useState("");
   const [pfSearch,setPfSearch] = useState([]);
   const [pfSearching,setPfSearching] = useState(false);
+
+  const [news,setNews]      = useState([]);
+  const [newsLoad,setNLoad] = useState(false);
+  const [newsReg,setNReg]   = useState("ALL");
   const pfSearchTimer = useRef(null);
 
   const t = T[lang];
@@ -376,6 +386,7 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
 .period-btn:hover{background:${C.goldBg}!important}
 .pf-row:hover{background:${C.bg}!important}
 .pf-action{opacity:0;transition:opacity 0.15s}
+.news-card:hover{box-shadow:0 6px 24px rgba(0,0,0,0.1)!important;transform:translateY(-1px)}
 .pf-row:hover .pf-action{opacity:1}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fu{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
