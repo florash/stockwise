@@ -1,0 +1,5 @@
+fastapi
+uvicorn
+yfinance
+httpx
+python-multipart
