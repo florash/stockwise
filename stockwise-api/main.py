@@ -219,38 +219,57 @@ async def ai_analyse(payload: dict):
         return {"error": str(e)}
 
 
+
+@app.get("/")
+def root():
+    return {"status": "ok", "service": "Stockwise API"}
+
 @app.get("/news")
 def get_news(symbols: str = Query(default="AAPL,NVDA,BHP,CBA,TSLA,AMZN,META,XRO")):
-    raw_list = [s.strip() for s in symbols.split(",") if s.strip()]
-    seen_titles = set()
+    import urllib.request, xml.etree.ElementTree as ET
+    RSS_FEEDS = [
+        ("https://feeds.finance.yahoo.com/rss/2.0/headline?s=AAPL,NVDA,TSLA,AMZN,META&region=US&lang=en-US", "US"),
+        ("https://feeds.finance.yahoo.com/rss/2.0/headline?s=BHP.AX,CBA.AX,XRO.AX&region=AU&lang=en-AU", "ASX"),
+    ]
     all_news = []
-    for raw in raw_list:
-        sym = normalize(raw)
+    seen = set()
+    for url, region in RSS_FEEDS:
         try:
-            ticker = yf.Ticker(sym)
-            for item in (ticker.news or [])[:4]:
-                title = item.get("title","")
-                if not title or title in seen_titles:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=8) as r:
+                xml_data = r.read()
+            root_el = ET.fromstring(xml_data)
+            for item in root_el.findall(".//item")[:15]:
+                title = item.findtext("title","").strip()
+                if not title or title in seen:
                     continue
-                seen_titles.add(title)
-                content = item.get("content") or {}
-                thumb = None
-                thumbs = content.get("thumbnail") or {}
-                resolutions = thumbs.get("resolutions") or []
-                if resolutions:
-                    thumb = resolutions[0].get("url")
-                pub = item.get("providerPublishTime") or 0
+                seen.add(title)
+                link = item.findtext("link","")
+                source = item.findtext("source","Yahoo Finance")
+                pub = item.findtext("pubDate","")
+                # parse pubDate to timestamp
+                ts = 0
+                try:
+                    from email.utils import parsedate_to_datetime
+                    ts = int(parsedate_to_datetime(pub).timestamp())
+                except:
+                    pass
+                # guess symbol from title
+                sym = "MARKET"
+                for s in ["AAPL","NVDA","TSLA","AMZN","META","BHP","CBA","XRO","MSFT","GOOGL"]:
+                    if s in title.upper():
+                        sym = s
+                        break
                 all_news.append({
-                    "title":     title,
-                    "link":      item.get("link") or content.get("canonicalUrl",{}).get("url",""),
-                    "source":    item.get("publisher") or content.get("provider",{}).get("displayName",""),
-                    "symbol":    raw.upper().replace(".AX",""),
-                    "region":    "ASX" if sym.endswith(".AX") else "US",
-                    "published": pub,
-                    "thumb":     thumb,
+                    "title": title,
+                    "link": link,
+                    "source": source or "Yahoo Finance",
+                    "symbol": sym,
+                    "region": region,
+                    "published": ts,
+                    "thumb": None,
                 })
-        except:
+        except Exception as e:
             continue
-    # 按时间倒序
     all_news.sort(key=lambda x: x["published"], reverse=True)
     return {"data": all_news[:40]}
