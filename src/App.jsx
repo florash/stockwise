@@ -13,7 +13,7 @@ const C = {
 };
 
 
- const DEFAULT_SYMBOLS = [
+const DEFAULT_SYMBOLS = [
   // 美股核心
   "AAPL","NVDA","MSFT","TSLA","AMZN","META","GOOGL","NFLX","AMD","COIN",
   "ORCL","UBER","PLTR","SNOW","CRM","INTC","QCOM","MU","AVGO","ARM",
