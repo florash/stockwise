@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
 /* ── config ───────────────────────────────────────────────────────── */
-const API = "http://localhost:8000";
+const API = "https://stockwise-76dt.onrender.com";
 
 /* ── palette ─────────────────────────────────────────────────────── */
 const C = {
