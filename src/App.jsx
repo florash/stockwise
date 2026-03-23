@@ -29,7 +29,7 @@ const C = {
   "VAS","NDQ","A200","STW","IOZ","VGS","VDHG","DHHF","QUAL","ETHI",
 ];
 
-];
+
 
 const T = {
   zh:{
