@@ -1,9 +1,7 @@
 # main.py — Stockwise 后端
-# 安装依赖：pip3 install fastapi yfinance uvicorn "python-multipart" httpx
-# 启动命令：python3 -m uvicorn main:app --reload --port 8000
-
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import yfinance as yf
 
 app = FastAPI(title="Stockwise API")
@@ -19,6 +17,12 @@ ASX_SYMBOLS = {
     "BHP","CBA","CSL","RIO","NAB","WBC","ANZ","WES","MQG","TLS",
     "FMG","COL","WOW","TCL","GMG","RMD","REA","ALL","CPU","SHL",
     "VAS","NDQ","A200","STW","IOZ","VGS","VDHG","DHHF","AFI","ARG",
+    "ASX","BEN","BOQ","BSL","CAR","CHC","CIM","CWY","DXS","EBO",
+    "EVN","IAG","IEL","IFL","IGO","JBH","LLC","LNK","MGR","MIN",
+    "MPL","MTS","NEC","NST","NXT","ORI","OZL","PLS","PMV","QAN",
+    "QBE","RHC","S32","SCG","SEK","SGP","STO","SUN","SVW","TAH",
+    "TWE","URW","VCX","VEA","WHC","WPL","XRO","Z1P",
+    "QUAL","ETHI","MNRS","HVST","SYI","MVW","GEAR","BBOZ",
 }
 
 def normalize(symbol: str) -> str:
@@ -61,47 +65,62 @@ def fetch_stock(sym: str, display: str) -> dict:
     name   = full.get("longName") or full.get("shortName") or display
     region = "ASX" if sym.endswith(".AX") else "US"
     is_etf = full.get("quoteType","") in ("ETF","MUTUALFUND")
+
+    # 盘前盘后
+    pre_price  = full.get("preMarketPrice")
+    post_price = full.get("postMarketPrice")
+    pre_pct    = round((pre_price - price) / price * 100, 2) if pre_price and price else None
+    post_pct   = round((post_price - price) / price * 100, 2) if post_price and price else None
+
     return {
-        "symbol":   display,
-        "yahooSym": sym,
-        "name":     name,
-        "price":    round(float(price), 2) if price else None,
-        "change":   change,
-        "pct":      pct,
-        "mkt":      full.get("exchange",""),
-        "region":   region,
-        "sector":   full.get("sector") or full.get("category") or ("ETF" if is_etf else "—"),
-        "pe":       round(float(full.get("trailingPE")), 1) if full.get("trailingPE") else None,
-        "vol":      fmt_large(full.get("regularMarketVolume") or full.get("volume")),
-        "cap":      fmt_large(full.get("marketCap")),
-        "isETF":    is_etf,
-        "error":    None,
+        "symbol":     display,
+        "yahooSym":   sym,
+        "name":       name,
+        "price":      round(float(price), 2) if price else None,
+        "change":     change,
+        "pct":        pct,
+        "mkt":        full.get("exchange",""),
+        "region":     region,
+        "sector":     full.get("sector") or full.get("category") or ("ETF" if is_etf else "—"),
+        "pe":         round(float(full.get("trailingPE")), 1) if full.get("trailingPE") else None,
+        "vol":        fmt_large(full.get("regularMarketVolume") or full.get("volume")),
+        "cap":        fmt_large(full.get("marketCap")),
+        "isETF":      is_etf,
+        "preMarket":  {"price": pre_price,  "pct": pre_pct},
+        "postMarket": {"price": post_price, "pct": post_pct},
+        "error":      None,
     }
 
 @app.get("/quotes")
 def get_quotes(symbols: str = Query(...)):
     raw_symbols = [s.strip() for s in symbols.split(",") if s.strip()]
-    result = []
-    for raw in raw_symbols:
+    results_map = {}
+
+    def fetch_one(raw):
         sym     = normalize(raw)
         display = raw.upper().replace(".AX","")
         try:
-            result.append(fetch_stock(sym, display))
+            return display, fetch_stock(sym, display)
         except Exception as e:
-            result.append({"symbol": display, "yahooSym": sym, "error": str(e)})
+            return display, {"symbol": display, "yahooSym": sym, "error": str(e)}
+
+    with ThreadPoolExecutor(max_workers=12) as ex:
+        futures = {ex.submit(fetch_one, raw): raw for raw in raw_symbols}
+        for f in as_completed(futures):
+            display, data = f.result()
+            results_map[display] = data
+
+    # 保持原始顺序
+    result = [results_map[r.upper().replace(".AX","")] for r in raw_symbols if r.upper().replace(".AX","") in results_map]
     return {"data": result}
 
 
 @app.get("/search")
 def search(q: str = Query(..., min_length=1)):
-    """搜索任意股票代码，直接查询 Yahoo Finance，不限制列表"""
     q_up = q.upper().strip()
-    # 尝试原始代码
     candidates = [normalize(q_up)]
-    # 如果不是 .AX 结尾，也尝试加 .AX
     if not q_up.endswith(".AX") and "." not in q_up:
         candidates.append(q_up + ".AX")
-
     for sym in candidates:
         try:
             display = q_up.replace(".AX","")
@@ -110,16 +129,11 @@ def search(q: str = Query(..., min_length=1)):
                 return {"query": q, "results": [stock]}
         except:
             continue
-
-    return {"query": q, "results": [], "error": f"未找到 {q_up}，请检查代码是否正确"}
+    return {"query": q, "results": [], "error": f"未找到 {q_up}"}
 
 
 @app.get("/history")
-def get_history(
-    symbol: str = Query(...),
-    period: str = Query("1mo"),
-    interval: str = Query("1d"),
-):
+def get_history(symbol: str = Query(...), period: str = Query("1mo"), interval: str = Query("1d")):
     sym = normalize(symbol)
     try:
         hist = yf.Ticker(sym).history(period=period, interval=interval)
@@ -132,6 +146,51 @@ def get_history(
         return {"symbol": symbol.upper(), "error": str(e), "data": []}
 
 
+@app.get("/intraday")
+def get_intraday(symbol: str = Query(...)):
+    sym = normalize(symbol)
+    try:
+        hist = yf.Ticker(sym).history(period="1d", interval="1m")
+        data = [
+            {"time": idx.strftime("%H:%M"), "close": round(float(row["Close"]), 4)}
+            for idx, row in hist.iterrows()
+        ]
+        return {"symbol": symbol.upper(), "data": data}
+    except Exception as e:
+        return {"symbol": symbol.upper(), "error": str(e), "data": []}
+
+
+@app.get("/indices")
+def get_indices():
+    INDEX_MAP = [
+        ("^GSPC",  "S&P 500"),
+        ("^IXIC",  "NASDAQ"),
+        ("^AXJO",  "ASX 200"),
+        ("AUDUSD=X","AUD/USD"),
+        ("GC=F",   "黄金"),
+        ("^VIX",   "VIX"),
+    ]
+    results = []
+    for sym, name in INDEX_MAP:
+        try:
+            t    = yf.Ticker(sym)
+            fi   = t.fast_info
+            price= getattr(fi,"last_price",None)
+            prev = getattr(fi,"previous_close",None)
+            if price and prev:
+                chg = price - prev
+                pct = chg / prev * 100
+                results.append({
+                    "name": name,
+                    "val":  f"{price:,.2f}",
+                    "chg":  f"{pct:+.2f}%",
+                    "pos":  chg >= 0,
+                })
+        except:
+            pass
+    return {"data": results}
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -139,7 +198,6 @@ def health():
 
 @app.post("/ai")
 async def ai_analyse(payload: dict):
-    """转发 AI 分析请求到 Anthropic，避免前端 CORS 问题"""
     import httpx
     try:
         async with httpx.AsyncClient(timeout=60) as client:

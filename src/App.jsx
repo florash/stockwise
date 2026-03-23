@@ -12,11 +12,23 @@ const C = {
   gold:"#f59e0b",
 };
 
-const DEFAULT_SYMBOLS = [
-  "AAPL","NVDA","MSFT","TSLA","AMZN","META",
-  "SPY","QQQ","VTI","IVV",
-  "BHP","CBA","CSL","RIO","NAB","WBC",
-  "VAS","NDQ","A200",
+
+ const DEFAULT_SYMBOLS = [
+  // 美股核心
+  "AAPL","NVDA","MSFT","TSLA","AMZN","META","GOOGL","NFLX","AMD","COIN",
+  "ORCL","UBER","PLTR","SNOW","CRM","INTC","QCOM","MU","AVGO","ARM",
+  "JPM","GS","BAC","V","MA","BRK-B","JNJ","UNH","PFE","ABBV",
+  "XOM","CVX","WMT","HD","NKE","DIS","SBUX","MCD","KO","PEP",
+  // 美股ETF
+  "SPY","QQQ","VTI","IVV","VOO","GLD","TLT","ARKK","SOXX","VNQ",
+  // 澳股核心
+  "BHP","CBA","CSL","RIO","NAB","WBC","ANZ","WES","MQG","TLS",
+  "FMG","COL","WOW","GMG","RMD","REA","ALL","QAN","XRO","MIN",
+  "NST","EVN","IGO","PLS","S32","STO","SUN","QBE","IAG","TWE",
+  // 澳股ETF
+  "VAS","NDQ","A200","STW","IOZ","VGS","VDHG","DHHF","QUAL","ETHI",
+];
+
 ];
 
 const T = {
