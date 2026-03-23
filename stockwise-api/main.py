@@ -217,3 +217,40 @@ async def ai_analyse(payload: dict):
         return r.json()
     except Exception as e:
         return {"error": str(e)}
+
+
+@app.get("/news")
+def get_news(symbols: str = Query(default="AAPL,NVDA,BHP,CBA,TSLA,AMZN,META,XRO")):
+    raw_list = [s.strip() for s in symbols.split(",") if s.strip()]
+    seen_titles = set()
+    all_news = []
+    for raw in raw_list:
+        sym = normalize(raw)
+        try:
+            ticker = yf.Ticker(sym)
+            for item in (ticker.news or [])[:4]:
+                title = item.get("title","")
+                if not title or title in seen_titles:
+                    continue
+                seen_titles.add(title)
+                content = item.get("content") or {}
+                thumb = None
+                thumbs = content.get("thumbnail") or {}
+                resolutions = thumbs.get("resolutions") or []
+                if resolutions:
+                    thumb = resolutions[0].get("url")
+                pub = item.get("providerPublishTime") or 0
+                all_news.append({
+                    "title":     title,
+                    "link":      item.get("link") or content.get("canonicalUrl",{}).get("url",""),
+                    "source":    item.get("publisher") or content.get("provider",{}).get("displayName",""),
+                    "symbol":    raw.upper().replace(".AX",""),
+                    "region":    "ASX" if sym.endswith(".AX") else "US",
+                    "published": pub,
+                    "thumb":     thumb,
+                })
+        except:
+            continue
+    # 按时间倒序
+    all_news.sort(key=lambda x: x["published"], reverse=True)
+    return {"data": all_news[:40]}
