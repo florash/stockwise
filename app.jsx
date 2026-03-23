@@ -5,10 +5,22 @@ const API = "http://localhost:8000";
 
 /* ── palette ─────────────────────────────────────────────────────── */
 const C = {
-  bg:"#faf6ef", bg2:"#f5efe3", card:"#fffdf8", border:"#e8dfc8",
-  border2:"#d4c49a", gold:"#b8933e", goldD:"#8a6c28", goldL:"#e8d5a3",
-  goldBg:"#fdf4dc", text:"#2c2416", text2:"#6b5b3e", text3:"#a8956e",
-  green:"#2d7a4f", greenBg:"#edf7f1", red:"#c0392b", redBg:"#fdf0ee",
+  bg:      "#ffffff",
+  bg2:     "#f7f8fa",
+  card:    "#ffffff",
+  border:  "#e8eaed",
+  border2: "#d1d5db",
+  gold:    "#111827",
+  goldD:   "#000000",
+  goldL:   "#e5e7eb",
+  goldBg:  "#f3f4f6",
+  text:    "#111827",
+  text2:   "#374151",
+  text3:   "#9ca3af",
+  green:   "#059669",
+  greenBg: "#ecfdf5",
+  red:     "#dc2626",
+  redBg:   "#fef2f2",
 };
 
 /* ── default symbols ─────────────────────────────────────────────── */
@@ -256,7 +268,7 @@ export default function App(){
   };
 
   const css=`
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{background:${C.bg}}
 ::-webkit-scrollbar{width:5px;height:5px}
@@ -297,8 +309,8 @@ input:focus{outline:none;border-color:${C.gold}!important;box-shadow:0 0 0 3px $
         <div style={{maxWidth:1200,margin:"0 auto",padding:"0 24px"}}>
           <div style={{display:"flex",alignItems:"center",gap:24,height:56}}>
             <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
-              <div style={{width:32,height:32,borderRadius:8,background:C.gold,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:16,fontFamily:"'Cormorant Garamond',serif"}}>S</div>
-              <span style={{fontFamily:"'Cormorant Garamond',serif",fontWeight:700,fontSize:22,color:C.text,letterSpacing:"-0.3px"}}>{t.brand}</span>
+              <div style={{width:32,height:32,borderRadius:8,background:C.gold,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:16,fontFamily:"'Inter',serif"}}>S</div>
+              <span style={{fontFamily:"'Inter',serif",fontWeight:700,fontSize:22,color:C.text,letterSpacing:"-0.3px"}}>{t.brand}</span>
             </div>
             <input
               placeholder={t.searchPh}
@@ -446,7 +458,7 @@ input:focus{outline:none;border-color:${C.gold}!important;box-shadow:0 0 0 3px $
         {tab==="watchlist"&&!query&&(
           <div>
             <div style={{marginBottom:20}}>
-              <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:26,fontWeight:600}}>{t.watchTitle}</h2>
+              <h2 style={{fontFamily:"'Inter',serif",fontSize:26,fontWeight:600}}>{t.watchTitle}</h2>
               <p style={{fontSize:13,color:C.text3,marginTop:4}}>{t.watchSub}</p>
             </div>
             {watch.length===0?(
@@ -483,7 +495,7 @@ input:focus{outline:none;border-color:${C.gold}!important;box-shadow:0 0 0 3px $
         {tab==="etf"&&!query&&(
           <div>
             <div style={{marginBottom:20}}>
-              <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:26,fontWeight:600}}>{t.etfTitle}</h2>
+              <h2 style={{fontFamily:"'Inter',serif",fontSize:26,fontWeight:600}}>{t.etfTitle}</h2>
               <p style={{fontSize:13,color:C.text3,marginTop:4}}>{t.etfSub}</p>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
@@ -539,7 +551,7 @@ input:focus{outline:none;border-color:${C.gold}!important;box-shadow:0 0 0 3px $
 
             {/* price */}
             <div style={{marginBottom:8}}>
-              <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:42,fontWeight:700,letterSpacing:"-1px"}}>
+              <span style={{fontFamily:"'Inter',serif",fontSize:42,fontWeight:700,letterSpacing:"-1px"}}>
                 {modal.region==="ASX"?"A$":"$"}{modal.price?.toFixed(2)}
               </span>
               <span style={{...chgPill(modal.pct),marginLeft:12,fontSize:14}}>
