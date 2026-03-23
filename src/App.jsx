@@ -5,10 +5,10 @@ const API = "https://stockwise-76dt.onrender.com";
 
 /* ── palette ─────────────────────────────────────────────────────── */
 const C = {
-  bg:"#faf6ef", bg2:"#f5efe3", card:"#fffdf8", border:"#e8dfc8",
-  border2:"#d4c49a", gold:"#b8933e", goldD:"#8a6c28", goldL:"#e8d5a3",
-  goldBg:"#fdf4dc", text:"#2c2416", text2:"#6b5b3e", text3:"#a8956e",
-  green:"#2d7a4f", greenBg:"#edf7f1", red:"#c0392b", redBg:"#fdf0ee",
+  bg:"#ffffff", bg2:"#f7f8fa", card:"#ffffff", border:"#e8eaed",
+  border2:"#d1d5db", gold:"#111827", goldD:"#000000", goldL:"#e5e7eb",
+  goldBg:"#f3f4f6", text:"#111827", text2:"#374151", text3:"#9ca3af",
+  green:"#059669", greenBg:"#ecfdf5", red:"#dc2626", redBg:"#fef2f2",
 };
 
 /* ── default symbols ─────────────────────────────────────────────── */
