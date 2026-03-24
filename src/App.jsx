@@ -254,6 +254,15 @@ export default function App(){
         .then(j=>setHist(j.data||[]))
         .catch(()=>setHist([]));
     }
+    useEffect(()=>{
+    if(tab!=="news") return;
+    if(news.length>0) return;
+    setNLoad(true);
+    fetch(`${API}/news`)
+      .then(r=>r.json())
+      .then(j=>{ setNews(j.data||[]); setNLoad(false); })
+      .catch(()=>setNLoad(false));
+  },[tab]);
   },[modal,histPeriod]);
 
   // ── Portfolio: fetch price for a symbol not in stocks ──
@@ -888,12 +897,7 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
               ))}
             </div>
 
-            {/* Fetch news on mount */}
-            {news.length===0&&!newsLoad&&(()=>{
-              setNLoad(true);
-              fetch(`${API}/news`).then(r=>r.json()).then(j=>{setNews(j.data||[]);setNLoad(false);}).catch(()=>setNLoad(false));
-              return null;
-            })()}
+
 
             {newsLoad&&(
               <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:14}}>
