@@ -182,8 +182,8 @@ function AreaChart({closes,pos,h=110,currency="$",period="1mo",region="US"}){
   const session = getSessionBounds(region);
   const pts=closes.map((item,i)=>{
     let ratio = i/(closes.length-1);
-    if(period === "today" && item.date){
-      const [hh, mm] = item.date.split(":").map(Number);
+    if(period === "today" && item.time){
+      const [hh, mm] = item.time.split(":").map(Number);
       const mins = hh * 60 + mm;
       ratio = Math.max(0, Math.min(1, (mins - session.start) / (session.end - session.start)));
     }

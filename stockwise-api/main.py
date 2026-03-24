@@ -6,6 +6,7 @@ import yfinance as yf
 import gc
 import time
 from threading import Lock
+from zoneinfo import ZoneInfo
 
 app = FastAPI(title="Stockwise API")
 
@@ -369,7 +370,15 @@ def get_history(symbol: str = Query(...), period: str = Query("1mo"), interval: 
 def get_intraday(symbol: str = Query(...)):
     sym = normalize(symbol)
     try:
-        hist = yf.Ticker(sym).history(period="1d", interval="1m")
+        market_tz = ZoneInfo("Australia/Sydney") if sym.endswith(".AX") else ZoneInfo("America/New_York")
+        hist = yf.Ticker(sym).history(period="2d", interval="5m")
+        if hist.empty:
+            return {"symbol": symbol.upper(), "data": []}
+        idx = hist.index
+        if getattr(idx, "tz", None) is not None:
+            hist.index = idx.tz_convert(market_tz)
+        latest_session = hist.index[-1].date()
+        hist = hist[hist.index.date == latest_session]
         data = [
             {"time": idx.strftime("%H:%M"), "close": round(float(row["Close"]), 4)}
             for idx, row in hist.iterrows()
