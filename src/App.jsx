@@ -334,7 +334,7 @@ export default function App(){
   });
   const [modal,setModal]  = useState(null);
   const [history,setHist] = useState([]);
-  const [histPeriod,setHP]= useState("1mo");
+  const [histPeriod,setHP]= useState("today");
   const [aiText,setAiT]   = useState("");
   const [aiLoad,setAiL]   = useState(false);
   const [aiMsg,setAiMsg]  = useState("");
@@ -559,7 +559,7 @@ export default function App(){
   const setSort2 = col=>setSort(p=>p.col===col?{...p,dir:-p.dir}:{col,dir:-1});
   const Arr=({col})=>sort.col!==col?<span style={{opacity:0.3,marginLeft:3}}>↕</span>:<span style={{marginLeft:3}}>{sort.dir===-1?"↓":"↑"}</span>;
   const toggleWatch = sym=>setWatch(p=>p.includes(sym)?p.filter(s=>s!==sym):[...p,sym]);
-  const openModal   = s=>{ setModal(s); setAiT(""); setHP("1mo"); };
+  const openModal   = s=>{ setModal(s); setAiT(""); setHP("today"); };
   const goHome = ()=>{
     setTab("market");
     setQuery("");
