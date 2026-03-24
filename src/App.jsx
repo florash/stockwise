@@ -602,6 +602,7 @@ export default function App(){
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{background:${C.bg};-webkit-font-smoothing:antialiased}
+html,body,#root{max-width:100%;overflow-x:hidden}
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:${C.border};border-radius:4px}
@@ -672,7 +673,7 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
 `;
 
   return(
-    <div style={{fontFamily:"'Inter',sans-serif",color:C.text,minHeight:"100vh",background:C.bg}}>
+    <div style={{fontFamily:"'Inter',sans-serif",color:C.text,minHeight:"100vh",background:C.bg,overflowX:"hidden"}}>
       <style>{css}</style>
 
       {/* HEADER */}
