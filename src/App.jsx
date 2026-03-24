@@ -254,7 +254,9 @@ export default function App(){
         .then(j=>setHist(j.data||[]))
         .catch(()=>setHist([]));
     }
-    useEffect(()=>{
+  },[modal,histPeriod]);
+
+  useEffect(()=>{
     if(tab!=="news") return;
     if(news.length>0) return;
     setNLoad(true);
@@ -262,8 +264,7 @@ export default function App(){
       .then(r=>r.json())
       .then(j=>{ setNews(j.data||[]); setNLoad(false); })
       .catch(()=>setNLoad(false));
-  },[tab]);
-  },[modal,histPeriod]);
+  },[tab,news.length]);
 
   // ── Portfolio: fetch price for a symbol not in stocks ──
   const getPrice = sym => stocks.find(s=>s.symbol===sym.toUpperCase());

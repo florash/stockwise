@@ -63,8 +63,7 @@ def fetch_stock(sym: str, display: str) -> dict:
         del hist
     change = round(price - prev, 4) if price and prev else 0
     pct    = round((change / prev) * 100, 2) if prev else 0
-    full   = ticker.info
-   full   = ticker.info or {}
+    full   = ticker.info or {}
     name   = full.get("longName") or full.get("shortName") or display
     region = "ASX" if sym.endswith(".AX") else "US"
     is_etf = full.get("quoteType","") in ("ETF","MUTUALFUND")
