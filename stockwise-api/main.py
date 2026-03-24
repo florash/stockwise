@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import yfinance as yf
 import gc
+import time
+from threading import Lock
 
 app = FastAPI(title="Stockwise API")
 
@@ -26,6 +28,28 @@ ASX_SYMBOLS = {
     "QUAL","ETHI","MNRS","HVST","SYI","MVW","GEAR","BBOZ",
 }
 
+QUOTE_CACHE_TTL = 90
+INDICES_CACHE_TTL = 120
+NEWS_CACHE_TTL = 300
+_cache_lock = Lock()
+_cache = {}
+
+
+def cache_get(key: str):
+    with _cache_lock:
+        entry = _cache.get(key)
+        if not entry:
+            return None
+        if entry["expires_at"] <= time.time():
+            _cache.pop(key, None)
+            return None
+        return entry["value"]
+
+
+def cache_set(key: str, value, ttl: int):
+    with _cache_lock:
+        _cache[key] = {"value": value, "expires_at": time.time() + ttl}
+
 def normalize(symbol: str) -> str:
     s = symbol.upper().strip()
     if s.endswith(".AX") or "." in s:
@@ -47,11 +71,20 @@ def fmt_large(val) -> str:
     except:
         return "N/A"
 
-def fetch_stock(sym: str, display: str) -> dict:
+
+def _fast_value(info, *names):
+    for name in names:
+        val = getattr(info, name, None)
+        if val is not None:
+            return val
+    return None
+
+
+def fetch_stock(sym: str, display: str, include_meta: bool = False) -> dict:
     ticker = yf.Ticker(sym)
     info = ticker.fast_info
-    price = getattr(info, "last_price", None) or getattr(info, "regularMarketPrice", None)
-    prev  = getattr(info, "previous_close", None) or getattr(info, "regularMarketPreviousClose", None)
+    price = _fast_value(info, "last_price", "regularMarketPrice")
+    prev  = _fast_value(info, "previous_close", "regularMarketPreviousClose")
     if price is None or prev is None:
         hist = ticker.history(period="2d")
         if len(hist) >= 2:
@@ -63,13 +96,34 @@ def fetch_stock(sym: str, display: str) -> dict:
         del hist
     change = round(price - prev, 4) if price and prev else 0
     pct    = round((change / prev) * 100, 2) if prev else 0
-    full   = ticker.info or {}
-    name   = full.get("longName") or full.get("shortName") or display
     region = "ASX" if sym.endswith(".AX") else "US"
-    is_etf = full.get("quoteType","") in ("ETF","MUTUALFUND")
+    exchange = _fast_value(info, "exchange", "market")
+    market_cap = _fast_value(info, "market_cap")
+    volume = _fast_value(info, "last_volume", "regularMarketVolume")
+    quote_type = (_fast_value(info, "quote_type") or "").upper()
+    is_etf = quote_type in ("ETF", "MUTUALFUND") or display in {
+        "SPY","QQQ","GLD","VAS","NDQ","A200","VGS","VDHG","DHHF","IOZ","STW","QUAL","ETHI","SYI","MVW","GEAR","BBOZ"
+    }
+    name = display
+    sector = "ETF" if is_etf else "—"
+    pe = None
+    pre_price = _fast_value(info, "pre_market_price", "preMarketPrice")
+    post_price = _fast_value(info, "post_market_price", "postMarketPrice")
 
-    pre_price  = full.get("preMarketPrice")
-    post_price = full.get("postMarketPrice")
+    if include_meta:
+        full = ticker.info or {}
+        name = full.get("longName") or full.get("shortName") or name
+        sector = full.get("sector") or full.get("category") or sector
+        pe_raw = full.get("trailingPE")
+        pe = round(float(pe_raw), 1) if pe_raw else None
+        exchange = full.get("exchange") or exchange or ""
+        market_cap = full.get("marketCap") or market_cap
+        volume = full.get("regularMarketVolume") or full.get("volume") or volume
+        pre_price = full.get("preMarketPrice") or pre_price
+        post_price = full.get("postMarketPrice") or post_price
+    else:
+        exchange = exchange or ("ASX" if region == "ASX" else "NASDAQ/NYSE")
+
     pre_pct    = round((pre_price - price) / price * 100, 2) if pre_price and price else None
     post_pct   = round((post_price - price) / price * 100, 2) if post_price and price else None
 
@@ -80,42 +134,47 @@ def fetch_stock(sym: str, display: str) -> dict:
         "price":      round(float(price), 2) if price else None,
         "change":     change,
         "pct":        pct,
-        "mkt":        full.get("exchange",""),
+        "mkt":        exchange or "",
         "region":     region,
-        "sector":     full.get("sector") or full.get("category") or ("ETF" if is_etf else "—"),
-        "pe":         round(float(full.get("trailingPE")), 1) if full.get("trailingPE") else None,
-        "vol":        fmt_large(full.get("regularMarketVolume") or full.get("volume")),
-        "cap":        fmt_large(full.get("marketCap")),
+        "sector":     sector,
+        "pe":         pe,
+        "vol":        fmt_large(volume),
+        "cap":        fmt_large(market_cap),
         "isETF":      is_etf,
         "preMarket":  {"price": pre_price,  "pct": pre_pct},
         "postMarket": {"price": post_price, "pct": post_pct},
         "error":      None,
     }
-    del full, info
+    del info
     gc.collect()
     return result
 
 @app.get("/quotes")
 def get_quotes(symbols: str = Query(...)):
     raw_symbols = [s.strip() for s in symbols.split(",") if s.strip()]
+    cache_key = "quotes:" + ",".join(raw_symbols)
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return {"data": cached, "cached": True}
     results_map = {}
 
     def fetch_one(raw):
         sym     = normalize(raw)
         display = raw.upper().replace(".AX","")
         try:
-            return display, fetch_stock(sym, display)
+            return display, fetch_stock(sym, display, include_meta=False)
         except Exception as e:
             return display, {"symbol": display, "yahooSym": sym, "error": str(e)}
 
-    with ThreadPoolExecutor(max_workers=5) as ex:
+    with ThreadPoolExecutor(max_workers=8) as ex:
         futures = {ex.submit(fetch_one, raw): raw for raw in raw_symbols}
         for f in as_completed(futures):
             display, data = f.result()
             results_map[display] = data
 
     result = [results_map[r.upper().replace(".AX","")] for r in raw_symbols if r.upper().replace(".AX","") in results_map]
-    return {"data": result}
+    cache_set(cache_key, result, QUOTE_CACHE_TTL)
+    return {"data": result, "cached": False}
 
 
 @app.get("/search")
@@ -127,7 +186,7 @@ def search(q: str = Query(..., min_length=1)):
     for sym in candidates:
         try:
             display = q_up.replace(".AX","")
-            stock   = fetch_stock(sym, display)
+            stock   = fetch_stock(sym, display, include_meta=True)
             if stock["price"] is not None:
                 return {"query": q, "results": [stock]}
         except:
@@ -169,6 +228,9 @@ def get_intraday(symbol: str = Query(...)):
 
 @app.get("/indices")
 def get_indices():
+    cached = cache_get("indices")
+    if cached is not None:
+        return {"data": cached, "cached": True}
     INDEX_MAP = [
         ("^GSPC",  "S&P 500"),
         ("^IXIC",  "NASDAQ"),
@@ -196,7 +258,8 @@ def get_indices():
         except:
             pass
     gc.collect()
-    return {"data": results}
+    cache_set("indices", results, INDICES_CACHE_TTL)
+    return {"data": results, "cached": False}
 
 
 @app.get("/health")
@@ -233,6 +296,9 @@ def root():
 
 @app.get("/news")
 def get_news(symbols: str = Query(default="AAPL,NVDA,BHP,CBA,TSLA,AMZN,META,XRO")):
+    cached = cache_get("news")
+    if cached is not None:
+        return {"data": cached, "cached": True}
     import urllib.request, xml.etree.ElementTree as ET
     RSS_FEEDS = [
         ("https://feeds.finance.yahoo.com/rss/2.0/headline?s=AAPL,NVDA,TSLA,AMZN,META&region=US&lang=en-US", "US"),
@@ -277,4 +343,6 @@ def get_news(symbols: str = Query(default="AAPL,NVDA,BHP,CBA,TSLA,AMZN,META,XRO"
         except Exception as e:
             continue
     all_news.sort(key=lambda x: x["published"], reverse=True)
-    return {"data": all_news[:40]}
+    result = all_news[:40]
+    cache_set("news", result, NEWS_CACHE_TTL)
+    return {"data": result, "cached": False}
