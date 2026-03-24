@@ -222,6 +222,45 @@ def search_symbols(q_up: str) -> list[str]:
 
     return candidates
 
+
+def fetch_index_snapshot(sym: str, name: str) -> dict | None:
+    ticker = yf.Ticker(sym)
+
+    try:
+        fi = ticker.fast_info
+        price = _fast_value(fi, "last_price", "regularMarketPrice")
+        prev = _fast_value(fi, "previous_close", "regularMarketPreviousClose")
+        if price is not None and prev is not None:
+            chg = price - prev
+            pct = chg / prev * 100 if prev else 0
+            return {
+                "name": name,
+                "val": f"{float(price):,.2f}",
+                "chg": f"{pct:+.2f}%",
+                "pos": chg >= 0,
+            }
+    except:
+        pass
+
+    try:
+        hist = ticker.history(period="5d")
+        closes = hist["Close"].dropna()
+        if len(closes) >= 2:
+            price = float(closes.iloc[-1])
+            prev = float(closes.iloc[-2])
+            chg = price - prev
+            pct = chg / prev * 100 if prev else 0
+            return {
+                "name": name,
+                "val": f"{price:,.2f}",
+                "chg": f"{pct:+.2f}%",
+                "pos": chg >= 0,
+            }
+    except:
+        pass
+
+    return None
+
 @app.get("/quotes")
 def get_quotes(symbols: str = Query(...)):
     raw_symbols = [s.strip() for s in symbols.split(",") if s.strip()]
@@ -317,22 +356,9 @@ def get_indices():
     ]
     results = []
     for sym, name in INDEX_MAP:
-        try:
-            t    = yf.Ticker(sym)
-            fi   = t.fast_info
-            price= getattr(fi,"last_price",None)
-            prev = getattr(fi,"previous_close",None)
-            if price and prev:
-                chg = price - prev
-                pct = chg / prev * 100
-                results.append({
-                    "name": name,
-                    "val":  f"{price:,.2f}",
-                    "chg":  f"{pct:+.2f}%",
-                    "pos":  chg >= 0,
-                })
-        except:
-            pass
+        item = fetch_index_snapshot(sym, name)
+        if item is not None:
+            results.append(item)
     gc.collect()
     cache_set("indices", results, INDICES_CACHE_TTL)
     return {"data": results, "cached": False}

@@ -42,6 +42,7 @@ const T = {
     na:"N/A", loading:"加载中…", error:"数据加载失败",
     retry:"重试", backendTip:"请确认后端已启动",
     refreshing:"更新中…", lastUpdated:"更新",
+    indicesEmpty:"指数数据暂时不可用",
     preMarket:"盘前", postMarket:"盘后", intraday:"分时",
     pfTitle:"我的持仓", pfSub:"数据保存在本地，刷新不丢失",
     pfEmpty:"还没有持仓，点击「+ 添加持仓」开始",
@@ -76,6 +77,7 @@ const T = {
     na:"N/A", loading:"Loading…", error:"Failed to load",
     retry:"Retry", backendTip:"Make sure backend is running",
     refreshing:"Refreshing…", lastUpdated:"Updated",
+    indicesEmpty:"Indices temporarily unavailable",
     preMarket:"Pre", postMarket:"Post", intraday:"Today",
     pfTitle:"My Portfolio", pfSub:"Saved locally in your browser",
     pfEmpty:"No holdings yet. Click '+ Add Position' to get started.",
@@ -551,7 +553,7 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
                 <span style={{fontSize:11,fontWeight:600,color:idx.pos?C.green:C.red,fontFamily:"'DM Mono',monospace"}}>{idx.chg}</span>
               </div>
             ))
-            : <div style={{padding:"7px 16px",fontSize:11,color:C.text3}}>—</div>
+            : <div style={{padding:"7px 16px",fontSize:11,color:C.text3}}>{t.indicesEmpty}</div>
           }
           {lastUpd&&<div style={{display:"flex",alignItems:"center",padding:"0 16px",fontSize:10,color:C.text3,flexShrink:0,marginLeft:"auto",whiteSpace:"nowrap"}}>
             {t.lastUpdated} {lastUpd.toLocaleTimeString()}
