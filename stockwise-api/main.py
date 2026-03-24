@@ -3,6 +3,7 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import yfinance as yf
+import gc
 
 app = FastAPI(title="Stockwise API")
 
@@ -59,6 +60,7 @@ def fetch_stock(sym: str, display: str) -> dict:
         elif len(hist) == 1:
             price = float(hist["Close"].iloc[-1])
             prev  = price
+        del hist
     change = round(price - prev, 4) if price and prev else 0
     pct    = round((change / prev) * 100, 2) if prev else 0
     full   = ticker.info
@@ -66,13 +68,12 @@ def fetch_stock(sym: str, display: str) -> dict:
     region = "ASX" if sym.endswith(".AX") else "US"
     is_etf = full.get("quoteType","") in ("ETF","MUTUALFUND")
 
-    # 盘前盘后
     pre_price  = full.get("preMarketPrice")
     post_price = full.get("postMarketPrice")
     pre_pct    = round((pre_price - price) / price * 100, 2) if pre_price and price else None
     post_pct   = round((post_price - price) / price * 100, 2) if post_price and price else None
 
-    return {
+    result = {
         "symbol":     display,
         "yahooSym":   sym,
         "name":       name,
@@ -90,6 +91,9 @@ def fetch_stock(sym: str, display: str) -> dict:
         "postMarket": {"price": post_price, "pct": post_pct},
         "error":      None,
     }
+    del full, info
+    gc.collect()
+    return result
 
 @app.get("/quotes")
 def get_quotes(symbols: str = Query(...)):
@@ -104,13 +108,12 @@ def get_quotes(symbols: str = Query(...)):
         except Exception as e:
             return display, {"symbol": display, "yahooSym": sym, "error": str(e)}
 
-    with ThreadPoolExecutor(max_workers=12) as ex:
+    with ThreadPoolExecutor(max_workers=5) as ex:
         futures = {ex.submit(fetch_one, raw): raw for raw in raw_symbols}
         for f in as_completed(futures):
             display, data = f.result()
             results_map[display] = data
 
-    # 保持原始顺序
     result = [results_map[r.upper().replace(".AX","")] for r in raw_symbols if r.upper().replace(".AX","") in results_map]
     return {"data": result}
 
@@ -141,6 +144,8 @@ def get_history(symbol: str = Query(...), period: str = Query("1mo"), interval: 
             {"date": str(idx.date()), "close": round(float(row["Close"]), 4)}
             for idx, row in hist.iterrows()
         ]
+        del hist
+        gc.collect()
         return {"symbol": symbol.upper(), "period": period, "data": closes}
     except Exception as e:
         return {"symbol": symbol.upper(), "error": str(e), "data": []}
@@ -155,6 +160,8 @@ def get_intraday(symbol: str = Query(...)):
             {"time": idx.strftime("%H:%M"), "close": round(float(row["Close"]), 4)}
             for idx, row in hist.iterrows()
         ]
+        del hist
+        gc.collect()
         return {"symbol": symbol.upper(), "data": data}
     except Exception as e:
         return {"symbol": symbol.upper(), "error": str(e), "data": []}
@@ -188,6 +195,7 @@ def get_indices():
                 })
         except:
             pass
+    gc.collect()
     return {"data": results}
 
 
@@ -219,7 +227,6 @@ async def ai_analyse(payload: dict):
         return {"error": str(e)}
 
 
-
 @app.get("/")
 def root():
     return {"status": "ok", "service": "Stockwise API"}
@@ -247,14 +254,12 @@ def get_news(symbols: str = Query(default="AAPL,NVDA,BHP,CBA,TSLA,AMZN,META,XRO"
                 link = item.findtext("link","")
                 source = item.findtext("source","Yahoo Finance")
                 pub = item.findtext("pubDate","")
-                # parse pubDate to timestamp
                 ts = 0
                 try:
                     from email.utils import parsedate_to_datetime
                     ts = int(parsedate_to_datetime(pub).timestamp())
                 except:
                     pass
-                # guess symbol from title
                 sym = "MARKET"
                 for s in ["AAPL","NVDA","TSLA","AMZN","META","BHP","CBA","XRO","MSFT","GOOGL"]:
                     if s in title.upper():
