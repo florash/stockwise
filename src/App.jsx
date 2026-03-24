@@ -563,6 +563,14 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
   .modal-period-btn{padding:5px 8px!important;font-size:10px!important}
   .modal-actions{position:sticky;bottom:0;background:${C.card};padding-top:10px!important;padding-bottom:calc(6px + env(safe-area-inset-bottom))!important}
   .modal-actions button{padding:11px 9px!important;font-size:12px!important}
+  .portfolio-header{margin-bottom:16px!important}
+  .portfolio-add-btn{width:100%!important;justify-content:center!important}
+  .portfolio-summary{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .portfolio-layout{grid-template-columns:1fr!important}
+  .portfolio-donut{min-width:0!important;width:100%!important}
+  .portfolio-table-wrap{overflow-x:auto}
+  .portfolio-table{min-width:560px}
+  .portfolio-th,.portfolio-td{padding-left:10px!important;padding-right:10px!important}
   .header-nav{display:none!important}
   .mobile-nav{display:flex!important}
   .pf-action{opacity:1!important}
@@ -813,12 +821,12 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
         {tab==="portfolio"&&!query&&(
           <div className="fu">
             {/* Header */}
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20,flexWrap:"wrap",gap:12}}>
+            <div className="portfolio-header" style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20,flexWrap:"wrap",gap:12}}>
               <div>
                 <h2 style={{fontSize:20,fontWeight:700}}>{t.pfTitle}</h2>
                 <p style={{fontSize:13,color:C.text3,marginTop:3}}>{t.pfSub}</p>
               </div>
-              <button onClick={openAddPf}
+              <button className="portfolio-add-btn" onClick={openAddPf}
                 style={{background:C.accent,border:"none",borderRadius:8,padding:"9px 18px",color:"#fff",fontFamily:"inherit",fontSize:13,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
                 {t.pfAdd}
               </button>
@@ -831,7 +839,7 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
                 </div>
               : <>
                   {/* Summary cards */}
-                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12,marginBottom:20}}>
+                  <div className="portfolio-summary" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12,marginBottom:20}}>
                     {[
                       {label:t.pfTotalValue, val:`$${pfTotalValue.toLocaleString("en",{minimumFractionDigits:2,maximumFractionDigits:2})}`, color:C.text},
                       {label:t.pfTotalCost,  val:`$${pfTotalCost.toLocaleString("en",{minimumFractionDigits:2,maximumFractionDigits:2})}`,  color:C.text2},
@@ -846,15 +854,15 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
                   </div>
 
                   {/* Main layout: table + donut */}
-                  <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:16,alignItems:"start"}}>
+                  <div className="portfolio-layout" style={{display:"grid",gridTemplateColumns:"1fr auto",gap:16,alignItems:"start"}}>
 
                     {/* Holdings table */}
-                    <div style={cardBase}>
-                      <table style={{width:"100%",borderCollapse:"collapse"}}>
+                    <div className="portfolio-table-wrap" style={cardBase}>
+                      <table className="portfolio-table" style={{width:"100%",borderCollapse:"collapse"}}>
                         <thead>
                           <tr style={{background:C.bg}}>
                             {[t.colSymbol, t.pfCost, t.pfNow, t.pfPnl, t.pfWeight,""].map((h,i)=>(
-                              <th key={i} style={{padding:"10px 16px",fontSize:11,fontWeight:500,color:C.text3,textAlign:i===0?"left":"right",letterSpacing:"0.04em",textTransform:"uppercase",whiteSpace:"nowrap"}}>
+                              <th className="portfolio-th" key={i} style={{padding:"10px 16px",fontSize:11,fontWeight:500,color:C.text3,textAlign:i===0?"left":"right",letterSpacing:"0.04em",textTransform:"uppercase",whiteSpace:"nowrap"}}>
                                 {h}
                               </th>
                             ))}
@@ -864,7 +872,7 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
                           {pfRows.map((r,i)=>(
                             <tr key={r.symbol} className="pf-row" style={{borderTop:`1px solid ${C.border}`,cursor:"default"}}>
                               {/* symbol */}
-                              <td style={{padding:"12px 16px"}}>
+                              <td className="portfolio-td" style={{padding:"12px 16px"}}>
                                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                                   <div style={{width:8,height:8,borderRadius:"50%",background:PORTFOLIO_COLORS[i%PORTFOLIO_COLORS.length],flexShrink:0}}/>
                                   <div style={{width:32,height:32,borderRadius:7,background:C.goldBg,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:C.accent,flexShrink:0}}>
@@ -877,17 +885,17 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
                                 </div>
                               </td>
                               {/* cost */}
-                              <td style={{padding:"12px 16px",textAlign:"right",fontSize:12,fontFamily:"'DM Mono',monospace"}}>
+                              <td className="portfolio-td" style={{padding:"12px 16px",textAlign:"right",fontSize:12,fontFamily:"'DM Mono',monospace"}}>
                                 <div style={{fontWeight:500}}>{r.currency}{r.cost.toFixed(2)}</div>
                                 <div style={{color:C.text3,fontSize:11}}>×{r.qty}</div>
                               </td>
                               {/* now */}
-                              <td style={{padding:"12px 16px",textAlign:"right",fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:600}}>
+                              <td className="portfolio-td" style={{padding:"12px 16px",textAlign:"right",fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:600}}>
                                 {r.nowPrice!=null ? `${r.currency}${r.nowPrice.toFixed(2)}` : <span style={{color:C.text3,fontSize:11}}>{t.pfNoPrice}</span>}
                                 {r.stock&&<div style={{fontSize:11}}><span style={chgPill(r.stock.pct)}>{r.stock.pct>=0?"▲":"▼"}{Math.abs(r.stock.pct).toFixed(2)}%</span></div>}
                               </td>
                               {/* pnl */}
-                              <td style={{padding:"12px 16px",textAlign:"right",fontFamily:"'DM Mono',monospace"}}>
+                              <td className="portfolio-td" style={{padding:"12px 16px",textAlign:"right",fontFamily:"'DM Mono',monospace"}}>
                                 {r.pnl!=null
                                   ? <>
                                       <div style={{fontWeight:700,fontSize:13,color:r.pnl>=0?C.green:C.red}}>{r.pnl>=0?"+":""}{r.currency}{Math.abs(r.pnl).toFixed(2)}</div>
@@ -897,11 +905,11 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
                                 }
                               </td>
                               {/* weight */}
-                              <td style={{padding:"12px 16px",textAlign:"right",fontSize:12,color:C.text2,fontFamily:"'DM Mono',monospace"}}>
+                              <td className="portfolio-td" style={{padding:"12px 16px",textAlign:"right",fontSize:12,color:C.text2,fontFamily:"'DM Mono',monospace"}}>
                                 {pfTotalValue>0 ? ((( r.nowTotal??r.costTotal)/pfTotalValue)*100).toFixed(1)+"%" : "—"}
                               </td>
                               {/* actions */}
-                              <td style={{padding:"12px 16px",textAlign:"right",whiteSpace:"nowrap"}}>
+                              <td className="portfolio-td" style={{padding:"12px 16px",textAlign:"right",whiteSpace:"nowrap"}}>
                                 <span className="pf-action" onClick={()=>openEditPf(r.i)} style={{fontSize:11,color:C.text3,cursor:"pointer",marginRight:8,padding:"3px 7px",borderRadius:5,border:`1px solid ${C.border}`}}>{t.pfEdit}</span>
                                 <span className="pf-action" onClick={()=>deletePf(r.i)} style={{fontSize:11,color:C.red,cursor:"pointer",padding:"3px 7px",borderRadius:5,border:`1px solid ${C.red}44`}}>{t.pfDelete}</span>
                               </td>
@@ -912,7 +920,7 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
                     </div>
 
                     {/* Donut */}
-                    <div style={{...cardBase,padding:20,minWidth:180,display:"flex",flexDirection:"column",alignItems:"center",gap:14}}>
+                    <div className="portfolio-donut" style={{...cardBase,padding:20,minWidth:180,display:"flex",flexDirection:"column",alignItems:"center",gap:14}}>
                       <DonutChart slices={donutSlices} size={130}/>
                       <div style={{width:"100%"}}>
                         {pfRows.map((r,i)=>(
