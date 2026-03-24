@@ -538,6 +538,10 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
   .hide-mobile{display:none!important}
   .mobile-full{width:100%!important;max-width:100%!important}
   .ticker-bar{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .market-table{min-width:420px!important}
+  .market-th,.market-td{padding-left:10px!important;padding-right:10px!important}
+  .market-symbol{gap:8px!important}
+  .market-name{max-width:96px!important}
   .modal-inner{padding:18px!important;margin:0!important;border-radius:16px 16px 0 0!important;position:fixed!important;bottom:0!important;top:auto!important;max-height:92vh!important}
   .modal-wrap{align-items:flex-end!important}
   .stat-grid{grid-template-columns:repeat(2,1fr)!important}
@@ -646,7 +650,7 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
               <span style={{marginLeft:"auto",fontSize:12,color:C.text3}}>{loading||searching?"…":t.results(visible.length)}</span>
             </div>
             <div style={{overflowX:"auto"}}>
-              <table style={{width:"100%",borderCollapse:"collapse",minWidth:600}}>
+              <table className="market-table" style={{width:"100%",borderCollapse:"collapse",minWidth:600}}>
                 <thead>
                   <tr style={{background:C.bg}}>
                     {[
@@ -655,10 +659,10 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
                       {col:"pct",   label:t.colChange,align:"right", w:"12%"},
                       {col:null,    label:t.colTrend, align:"center",w:"10%",cls:"hide-mobile"},
                       {col:"vol",   label:t.colVol,   align:"right", w:"13%",cls:"hide-mobile"},
-                      {col:"cap",   label:t.colCap,   align:"right", w:"13%"},
-                      {col:null,    label:"",          align:"center",w:"6%"},
+                      {col:"cap",   label:t.colCap,   align:"right", w:"13%",cls:"hide-mobile"},
+                      {col:null,    label:"",          align:"center",w:"6%",cls:"hide-mobile"},
                     ].map((h,i)=>(
-                      <th key={i} className={`${h.col?"th":""} ${h.cls||""}`}
+                      <th key={i} className={`market-th ${h.col?"th":""} ${h.cls||""}`}
                         onClick={h.col?()=>setSort2(h.col):undefined}
                         style={{padding:"10px 16px",fontSize:11,fontWeight:500,color:C.text3,textAlign:h.align,letterSpacing:"0.04em",textTransform:"uppercase",width:h.w}}>
                         {h.label}{h.col&&<Arr col={h.col}/>}
@@ -674,8 +678,8 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
                     : visible.map((s,i)=>(
                       <tr key={s.symbol} className="tr fu" onClick={()=>openModal(s)}
                         style={{borderBottom:i<visible.length-1?`1px solid ${C.border}`:"none"}}>
-                        <td style={{padding:"11px 16px"}}>
-                          <div style={{display:"flex",alignItems:"center",gap:10}}>
+                        <td className="market-td" style={{padding:"11px 16px"}}>
+                          <div className="market-symbol" style={{display:"flex",alignItems:"center",gap:10}}>
                             <div style={{width:34,height:34,borderRadius:8,background:C.goldBg,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:C.accent,flexShrink:0}}>
                               {s.symbol.slice(0,3)}
                             </div>
@@ -684,22 +688,22 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
                                 {s.symbol}
                                 {s.isETF&&<span style={{fontSize:9,background:C.bg2,color:C.text3,padding:"1px 5px",borderRadius:3,border:`1px solid ${C.border}`,fontWeight:600,letterSpacing:"0.04em"}}>ETF</span>}
                               </div>
-                              <div style={{fontSize:11,color:C.text3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:180}}>{s.name}</div>
+                              <div className="market-name" style={{fontSize:11,color:C.text3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:180}}>{s.name}</div>
                             </div>
                           </div>
                         </td>
-                        <td style={{padding:"11px 16px",textAlign:"right",fontFamily:"'DM Mono',monospace",fontWeight:600,fontSize:13,whiteSpace:"nowrap"}}>
+                        <td className="market-td" style={{padding:"11px 16px",textAlign:"right",fontFamily:"'DM Mono',monospace",fontWeight:600,fontSize:13,whiteSpace:"nowrap"}}>
                           {s.region==="ASX"?"A$":"$"}{s.price?.toFixed(2)}
                         </td>
-                        <td style={{padding:"11px 16px",textAlign:"right"}}>
+                        <td className="market-td" style={{padding:"11px 16px",textAlign:"right"}}>
                           <span style={chgPill(s.pct)}>{s.pct>=0?"▲":"▼"} {Math.abs(s.pct).toFixed(2)}%</span>
                         </td>
-                        <td className="hide-mobile" style={{padding:"11px 16px",textAlign:"center"}}>
+                        <td className="market-td hide-mobile" style={{padding:"11px 16px",textAlign:"center"}}>
                           <Spark data={SparkData(s)} pos={s.pct>=0}/>
                         </td>
-                        <td className="hide-mobile" style={{padding:"11px 16px",textAlign:"right",fontSize:12,color:C.text2,fontFamily:"'DM Mono',monospace"}}>{s.vol}</td>
-                        <td style={{padding:"11px 16px",textAlign:"right",fontSize:12,color:C.text2,fontFamily:"'DM Mono',monospace"}}>{s.cap}</td>
-                        <td style={{padding:"11px 16px",textAlign:"center"}}>
+                        <td className="market-td hide-mobile" style={{padding:"11px 16px",textAlign:"right",fontSize:12,color:C.text2,fontFamily:"'DM Mono',monospace"}}>{s.vol}</td>
+                        <td className="market-td hide-mobile" style={{padding:"11px 16px",textAlign:"right",fontSize:12,color:C.text2,fontFamily:"'DM Mono',monospace"}}>{s.cap}</td>
+                        <td className="market-td hide-mobile" style={{padding:"11px 16px",textAlign:"center"}}>
                           <span className="star" onClick={e=>{e.stopPropagation();toggleWatch(s.symbol);}}
                             style={{fontSize:16,color:watch.includes(s.symbol)?C.gold:C.border2}}>
                             {watch.includes(s.symbol)?"★":"☆"}
