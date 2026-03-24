@@ -286,9 +286,10 @@ export default function App(){
   const [newsLoad,setNLoad] = useState(false);
   const [newsReg,setNReg]   = useState("ALL");
   const pfSearchTimer = useRef(null);
+  const pfQtyInputRef = useRef(null);
 
   const t = T[lang];
-  const normalizePortfolioSymbol = value => value.replace(/\s+/g,"").toUpperCase();
+  const normalizePortfolioSymbol = value => value.replace(/[^A-Za-z0-9.]/g,"").toUpperCase();
 
   // persist watch + portfolio
   useEffect(()=>{ localStorage.setItem("sw_watch", JSON.stringify(watch)); },[watch]);
@@ -540,10 +541,13 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
   .hide-mobile{display:none!important}
   .mobile-full{width:100%!important;max-width:100%!important}
   .ticker-bar{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .market-table{min-width:420px!important}
-  .market-th,.market-td{padding-left:10px!important;padding-right:10px!important}
-  .market-symbol{gap:8px!important}
-  .market-name{max-width:96px!important}
+  .market-table{min-width:380px!important}
+  .market-th,.market-td{padding-left:8px!important;padding-right:8px!important}
+  .market-symbol{gap:6px!important}
+  .market-name{max-width:76px!important}
+  .market-avatar{width:30px!important;height:30px!important}
+  .market-price{font-size:12px!important}
+  .market-change{padding:3px 7px!important;font-size:11px!important}
   .modal-inner{padding:18px!important;margin:0!important;border-radius:16px 16px 0 0!important;position:fixed!important;bottom:0!important;top:auto!important;max-height:92vh!important}
   .modal-wrap{align-items:flex-end!important}
   .stat-grid{grid-template-columns:repeat(2,1fr)!important}
@@ -682,7 +686,7 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
                         style={{borderBottom:i<visible.length-1?`1px solid ${C.border}`:"none"}}>
                         <td className="market-td" style={{padding:"11px 16px"}}>
                           <div className="market-symbol" style={{display:"flex",alignItems:"center",gap:10}}>
-                            <div style={{width:34,height:34,borderRadius:8,background:C.goldBg,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:C.accent,flexShrink:0}}>
+                            <div className="market-avatar" style={{width:34,height:34,borderRadius:8,background:C.goldBg,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:C.accent,flexShrink:0}}>
                               {s.symbol.slice(0,3)}
                             </div>
                             <div style={{minWidth:0}}>
@@ -694,11 +698,11 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
                             </div>
                           </div>
                         </td>
-                        <td className="market-td" style={{padding:"11px 16px",textAlign:"right",fontFamily:"'DM Mono',monospace",fontWeight:600,fontSize:13,whiteSpace:"nowrap"}}>
+                        <td className="market-td market-price" style={{padding:"11px 16px",textAlign:"right",fontFamily:"'DM Mono',monospace",fontWeight:600,fontSize:13,whiteSpace:"nowrap"}}>
                           {s.region==="ASX"?"A$":"$"}{s.price?.toFixed(2)}
                         </td>
                         <td className="market-td" style={{padding:"11px 16px",textAlign:"right"}}>
-                          <span style={chgPill(s.pct)}>{s.pct>=0?"▲":"▼"} {Math.abs(s.pct).toFixed(2)}%</span>
+                          <span className="market-change" style={chgPill(s.pct)}>{s.pct>=0?"▲":"▼"} {Math.abs(s.pct).toFixed(2)}%</span>
                         </td>
                         <td className="market-td hide-mobile" style={{padding:"11px 16px",textAlign:"center"}}>
                           <Spark data={SparkData(s)} pos={s.pct>=0}/>
@@ -1102,13 +1106,24 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
               <label style={{fontSize:12,fontWeight:500,color:C.text2,display:"block",marginBottom:6}}>{t.pfSymbol}</label>
               <input
                 value={pfForm.symbol}
-                onChange={e=>setPfForm(f=>({...f,symbol:pfSymbolComposing ? e.target.value : normalizePortfolioSymbol(e.target.value)}))}
+                onChange={e=>setPfForm(f=>({...f,symbol:e.target.value}))}
                 onCompositionStart={()=>setPfSymbolComposing(true)}
                 onCompositionEnd={e=>{
                   setPfSymbolComposing(false);
-                  setPfForm(f=>({...f,symbol:normalizePortfolioSymbol(e.currentTarget.value)}));
+                  const nextValue = e.currentTarget.value;
+                  setPfForm(f=>({...f,symbol:normalizePortfolioSymbol(nextValue)}));
                 }}
                 onBlur={e=>setPfForm(f=>({...f,symbol:normalizePortfolioSymbol(e.target.value)}))}
+                onKeyDown={e=>{
+                  if(e.key !== "Enter") return;
+                  if(e.nativeEvent.isComposing || pfSymbolComposing){
+                    e.preventDefault();
+                    return;
+                  }
+                  e.preventDefault();
+                  setPfForm(f=>({...f,symbol:normalizePortfolioSymbol(e.currentTarget.value)}));
+                  pfQtyInputRef.current?.focus();
+                }}
                 placeholder="AAPL / BHP / VAS…"
                 disabled={pfEditing!=null}
                 autoCapitalize="characters"
@@ -1123,6 +1138,7 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
               <label style={{fontSize:12,fontWeight:500,color:C.text2,display:"block",marginBottom:6}}>{t.pfQty}</label>
               <input
                 type="number" min="0" step="any"
+                ref={pfQtyInputRef}
                 value={pfForm.qty}
                 onChange={e=>setPfForm(f=>({...f,qty:e.target.value}))}
                 placeholder="100"
