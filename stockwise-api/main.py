@@ -346,12 +346,16 @@ def health():
 @app.post("/ai")
 async def ai_analyse(payload: dict):
     import httpx
+    import os
     try:
+        api_key = payload.get("apiKey") or os.getenv("ANTHROPIC_API_KEY", "")
+        if not api_key:
+            return {"error": "Missing Anthropic API key"}
         async with httpx.AsyncClient(timeout=60) as client:
             r = await client.post(
                 "https://api.anthropic.com/v1/messages",
                 headers={
-                    "x-api-key": payload.get("apiKey", ""),
+                    "x-api-key": api_key,
                     "anthropic-version": "2023-06-01",
                     "content-type": "application/json",
                 },

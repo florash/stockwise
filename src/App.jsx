@@ -39,6 +39,8 @@ const T = {
     aiHint:"点击「生成分析」，Claude AI 将从近期表现、投资逻辑、风险三个维度进行专业分析。",
     aiAnalyzing:["分析财务数据中…","获取市场情绪…","生成分析报告…"],
     aiRetry:"↻ 重新分析", addWatch:"☆ 加入自选", inWatch:"★ 已加自选",
+    featuredTitle:"精选图表", featuredSub:"真实走势聚焦核心龙头",
+    featuredCta:"查看详情",
     na:"N/A", loading:"加载中…", error:"数据加载失败",
     retry:"重试", backendTip:"请确认后端已启动",
     refreshing:"更新中…", lastUpdated:"更新",
@@ -73,6 +75,8 @@ const T = {
     aiHint:"Click 'Analyse' — Claude AI will assess performance, investment thesis, and key risks.",
     aiAnalyzing:["Analysing financials…","Reading sentiment…","Generating report…"],
     aiRetry:"↻ Re-analyse", addWatch:"☆ Watchlist", inWatch:"★ Watching",
+    featuredTitle:"Featured Chart", featuredSub:"A real market chart as the visual center",
+    featuredCta:"Open details",
     na:"N/A", loading:"Loading…", error:"Failed to load",
     retry:"Retry", backendTip:"Make sure backend is running",
     refreshing:"Refreshing…", lastUpdated:"Updated",
@@ -172,6 +176,24 @@ function DonutChart({slices, size=120}){
 
 const PORTFOLIO_COLORS = ["#1a1a2e","#f59e0b","#059669","#dc2626","#6366f1","#0ea5e9","#8b5cf6","#ec4899","#14b8a6","#f97316"];
 
+function buildFallbackAnalysis(stock, lang){
+  const direction = stock.pct >= 0;
+  if(lang === "zh"){
+    return [
+      `${stock.symbol} 目前报价 ${stock.region==="ASX"?"A$":"$"}${stock.price?.toFixed(2) ?? "—"}，日内 ${direction ? "上涨" : "下跌"} ${Math.abs(stock.pct ?? 0).toFixed(2)}%。`,
+      `近期表现上，价格动能${direction ? "偏强" : "偏弱"}，短线情绪会更容易受财报、行业消息和大盘波动放大。`,
+      `投资逻辑方面，${stock.name || stock.symbol} 当前主要看点在于 ${stock.sector || "行业景气度"}、盈利兑现能力，以及市场是否继续给予估值支持。`,
+      `风险方面，需要留意估值回落、成交量变化、业绩不及预期，以及高波动阶段带来的回撤。`
+    ].join("");
+  }
+  return [
+    `${stock.symbol} is trading at ${stock.region==="ASX"?"A$":"$"}${stock.price?.toFixed(2) ?? "—"}, with a daily move of ${Math.abs(stock.pct ?? 0).toFixed(2)}% ${direction ? "up" : "down"}.`,
+    `Near-term performance looks ${direction ? "constructive" : "soft"}, and sentiment is likely to stay sensitive to earnings, sector headlines, and broader market moves.`,
+    `The core thesis depends on execution, demand resilience, and whether the market continues to support current valuation levels for ${stock.name || stock.symbol}.`,
+    `Key risks include multiple compression, weaker-than-expected results, and sharper drawdowns if momentum fades.`
+  ].join(" ");
+}
+
 export default function App(){
   const [lang,setLang]    = useState("zh");
   const [tab,setTab]      = useState("market");
@@ -197,6 +219,7 @@ export default function App(){
   const [refreshing,setRef]  = useState(false);
   const [searchResults,setSearchResults] = useState([]);
   const [searching,setSearching] = useState(false);
+  const [featuredHistory,setFeaturedHistory] = useState([]);
 
   // ── Portfolio state ──
   const [portfolio,setPortfolio] = useState(()=>{
@@ -267,6 +290,16 @@ export default function App(){
       .then(j=>{ setNews(j.data||[]); setNLoad(false); })
       .catch(()=>setNLoad(false));
   },[tab,news.length]);
+
+  const featuredStock = stocks.find(s=>s.symbol==="AAPL") || stocks[0] || null;
+
+  useEffect(()=>{
+    if(!featuredStock) return;
+    fetch(`${API}/history?symbol=${featuredStock.yahooSym||featuredStock.symbol}&period=1mo`)
+      .then(r=>r.json())
+      .then(j=>setFeaturedHistory(j.data||[]))
+      .catch(()=>setFeaturedHistory([]));
+  },[featuredStock?.symbol]);
 
   useEffect(()=>{
     const q = query.trim();
@@ -392,20 +425,36 @@ export default function App(){
   const Arr=({col})=>sort.col!==col?<span style={{opacity:0.3,marginLeft:3}}>↕</span>:<span style={{marginLeft:3}}>{sort.dir===-1?"↓":"↑"}</span>;
   const toggleWatch = sym=>setWatch(p=>p.includes(sym)?p.filter(s=>s!==sym):[...p,sym]);
   const openModal   = s=>{ setModal(s); setAiT(""); setHP("1mo"); };
+  const goHome = ()=>{
+    setTab("market");
+    setQuery("");
+    setReg("ALL");
+    setTypeF("ALL");
+    setModal(null);
+  };
 
   const runAI = async stock=>{
     setAiT(""); setAiL(true);
     const msgs=t.aiAnalyzing; let i=0; setAiMsg(msgs[0]);
     const iv=setInterval(()=>{ i=(i+1)%msgs.length; setAiMsg(msgs[i]); },1100);
     try{
-      const r=await fetch("https://api.anthropic.com/v1/messages",{
-        method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,
-          messages:[{role:"user",content:t.aiPrompt(stock)}]})
+      const r=await fetch(`${API}/ai`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          messages:[{role:"user",content:t.aiPrompt(stock)}]
+        })
       });
       const d=await r.json();
-      setAiT(d.content?.map(b=>b.text||"").join("")||t.na);
-    }catch{ setAiT(lang==="zh"?"AI 分析暂时不可用":"AI analysis unavailable."); }
+      const text = d.content?.map(b=>b.text||"").join("").trim();
+      if(text){
+        setAiT(text);
+      } else {
+        setAiT(buildFallbackAnalysis(stock, lang));
+      }
+    }catch{
+      setAiT(buildFallbackAnalysis(stock, lang));
+    }
     finally{ clearInterval(iv); setAiL(false); }
   };
 
@@ -468,10 +517,10 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
       <div style={{background:C.card,borderBottom:`1px solid ${C.border}`,position:"sticky",top:0,zIndex:100}}>
         <div style={{maxWidth:1280,margin:"0 auto",padding:"0 20px"}}>
           <div style={{display:"flex",alignItems:"center",gap:16,height:54}}>
-            <div style={{display:"flex",alignItems:"center",gap:9,flexShrink:0}}>
+            <button onClick={goHome} style={{display:"flex",alignItems:"center",gap:9,flexShrink:0,background:"none",border:"none",padding:0,cursor:"pointer"}}>
               <Logo/>
               <span style={{fontWeight:700,fontSize:17,color:C.text,letterSpacing:"-0.3px"}}>{t.brand}</span>
-            </div>
+            </button>
             <div style={{flex:1,maxWidth:420}}>
               <input
                 placeholder={t.searchPh}
@@ -532,6 +581,53 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
           <div style={{background:C.redBg,border:`1px solid ${C.red}33`,borderRadius:10,padding:"12px 16px",marginBottom:16,display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
             <span style={{color:C.red,fontSize:13}}>{t.error}: {error}</span>
             <button onClick={()=>fetchQuotes()} style={{background:C.red,border:"none",borderRadius:6,padding:"6px 14px",color:"#fff",cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:600,marginLeft:"auto"}}>{t.retry}</button>
+          </div>
+        )}
+
+        {tab==="market"&&!query&&featuredStock&&(
+          <div className="fu" onClick={()=>openModal(featuredStock)} style={{...cardBase,marginBottom:18,padding:20,cursor:"pointer",background:`linear-gradient(135deg, ${C.card} 0%, ${C.goldBg} 100%)`}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:18,alignItems:"stretch"}}>
+              <div style={{display:"flex",flexDirection:"column"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12,marginBottom:12,flexWrap:"wrap"}}>
+                  <div>
+                    <div style={{fontSize:11,color:C.text3,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:6}}>{t.featuredTitle}</div>
+                    <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                      <h2 style={{fontSize:28,fontWeight:800,letterSpacing:"-0.04em"}}>{featuredStock.symbol}</h2>
+                      <span style={{fontSize:13,color:C.text2}}>{featuredStock.name}</span>
+                    </div>
+                    <p style={{fontSize:13,color:C.text3,marginTop:4}}>{t.featuredSub}</p>
+                  </div>
+                  <span style={chgPill(featuredStock.pct)}>{featuredStock.pct>=0?"▲":"▼"} {Math.abs(featuredStock.pct).toFixed(2)}%</span>
+                </div>
+                <div style={{flex:1,borderRadius:12,overflow:"hidden",background:featuredStock.pct>=0?C.greenBg:C.redBg,border:`1px solid ${C.border}`,padding:"10px 12px"}}>
+                  {featuredHistory.length>1
+                    ? <AreaChart closes={featuredHistory} pos={featuredStock.pct>=0} h={220}/>
+                    : <div style={{height:220,display:"flex",alignItems:"center",justifyContent:"center"}}><Skeleton h={180}/></div>}
+                </div>
+              </div>
+              <div style={{display:"grid",gap:12,alignContent:"start"}}>
+                <div style={{...cardBase,padding:"16px 18px",background:"rgba(255,255,255,0.75)"}}>
+                  <div style={{fontSize:11,color:C.text3,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:6}}>{t.colPrice}</div>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontWeight:800,fontSize:30}}>{featuredStock.region==="ASX"?"A$":"$"}{featuredStock.price?.toFixed(2)}</div>
+                  <div style={{marginTop:8,fontSize:12,color:featuredStock.change>=0?C.green:C.red}}>{featuredStock.change>=0?"+":""}{featuredStock.change?.toFixed(2)}</div>
+                </div>
+                <div style={{...cardBase,padding:"16px 18px",background:"rgba(255,255,255,0.75)"}}>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:12}}>
+                    <div>
+                      <div style={{fontSize:11,color:C.text3,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:6}}>{t.colCap}</div>
+                      <div style={{fontFamily:"'DM Mono',monospace",fontWeight:700,fontSize:16}}>{featuredStock.cap}</div>
+                    </div>
+                    <div>
+                      <div style={{fontSize:11,color:C.text3,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:6}}>{t.colVol}</div>
+                      <div style={{fontFamily:"'DM Mono',monospace",fontWeight:700,fontSize:16}}>{featuredStock.vol}</div>
+                    </div>
+                  </div>
+                </div>
+                <button style={{background:C.accent,border:"none",borderRadius:10,padding:"12px 16px",color:"#fff",fontFamily:"inherit",fontWeight:700,fontSize:13,cursor:"pointer",textAlign:"left"}}>
+                  {t.featuredCta}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
