@@ -280,6 +280,7 @@ export default function App(){
   const [pfError,setPfError] = useState("");
   const [pfSearch,setPfSearch] = useState([]);
   const [pfSearching,setPfSearching] = useState(false);
+  const [pfSymbolComposing,setPfSymbolComposing] = useState(false);
 
   const [news,setNews]      = useState([]);
   const [newsLoad,setNLoad] = useState(false);
@@ -287,6 +288,7 @@ export default function App(){
   const pfSearchTimer = useRef(null);
 
   const t = T[lang];
+  const normalizePortfolioSymbol = value => value.replace(/\s+/g,"").toUpperCase();
 
   // persist watch + portfolio
   useEffect(()=>{ localStorage.setItem("sw_watch", JSON.stringify(watch)); },[watch]);
@@ -405,7 +407,7 @@ export default function App(){
   const openAddPf = ()=>{ setPfEditing(null); setPfForm({symbol:"",qty:"",cost:""}); setPfError(""); setPfSearch([]); setPfModal(true); };
   const openEditPf = (idx)=>{ const h=portfolio[idx]; setPfEditing(idx); setPfForm({symbol:h.symbol,qty:String(h.qty),cost:String(h.cost)}); setPfError(""); setPfSearch([]); setPfModal(true); };
   const savePf = async()=>{
-    const sym  = pfForm.symbol.trim().toUpperCase();
+    const sym  = normalizePortfolioSymbol(pfForm.symbol.trim());
     const qty  = parseFloat(pfForm.qty);
     const cost = parseFloat(pfForm.cost);
     if(!sym)             { setPfError(lang==="zh"?"请输入股票代码":"Enter a symbol"); return; }
@@ -1100,9 +1102,18 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
               <label style={{fontSize:12,fontWeight:500,color:C.text2,display:"block",marginBottom:6}}>{t.pfSymbol}</label>
               <input
                 value={pfForm.symbol}
-                onChange={e=>setPfForm(f=>({...f,symbol:e.target.value.toUpperCase()}))}
+                onChange={e=>setPfForm(f=>({...f,symbol:pfSymbolComposing ? e.target.value : normalizePortfolioSymbol(e.target.value)}))}
+                onCompositionStart={()=>setPfSymbolComposing(true)}
+                onCompositionEnd={e=>{
+                  setPfSymbolComposing(false);
+                  setPfForm(f=>({...f,symbol:normalizePortfolioSymbol(e.currentTarget.value)}));
+                }}
+                onBlur={e=>setPfForm(f=>({...f,symbol:normalizePortfolioSymbol(e.target.value)}))}
                 placeholder="AAPL / BHP / VAS…"
                 disabled={pfEditing!=null}
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
                 style={{width:"100%",height:38,borderRadius:8,border:`1px solid ${C.border}`,background:pfEditing!=null?C.bg:C.card,padding:"0 12px",fontSize:14,fontFamily:"'DM Mono',monospace",fontWeight:600,color:C.text}}
               />
             </div>
