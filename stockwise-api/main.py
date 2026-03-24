@@ -31,6 +31,7 @@ ASX_SYMBOLS = {
 QUOTE_CACHE_TTL = 90
 INDICES_CACHE_TTL = 120
 NEWS_CACHE_TTL = 300
+SPARKS_CACHE_TTL = 180
 _cache_lock = Lock()
 _cache = {}
 
@@ -261,6 +262,45 @@ def fetch_index_snapshot(sym: str, name: str) -> dict | None:
 
     return None
 
+
+def fetch_spark_batch(raw_symbols: list[str]) -> dict:
+    cache_key = "sparks:" + ",".join(raw_symbols)
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return {"data": cached, "cached": True}
+
+    pairs = [(raw.upper().replace(".AX",""), normalize(raw)) for raw in raw_symbols]
+    tickers = [sym for _, sym in pairs]
+    result = {display: [] for display, _ in pairs}
+
+    try:
+        hist = yf.download(
+            tickers=tickers,
+            period="1d",
+            interval="5m",
+            group_by="ticker",
+            auto_adjust=False,
+            progress=False,
+            threads=True,
+        )
+
+        if len(tickers) == 1:
+            display, _ = pairs[0]
+            closes = hist["Close"].dropna().tolist() if "Close" in hist else []
+            result[display] = [round(float(v), 4) for v in closes[-24:]]
+        else:
+            for display, sym in pairs:
+                try:
+                    closes = hist[sym]["Close"].dropna().tolist()
+                    result[display] = [round(float(v), 4) for v in closes[-24:]]
+                except:
+                    result[display] = []
+    except:
+        pass
+
+    cache_set(cache_key, result, SPARKS_CACHE_TTL)
+    return {"data": result, "cached": False}
+
 @app.get("/quotes")
 def get_quotes(symbols: str = Query(...)):
     raw_symbols = [s.strip() for s in symbols.split(",") if s.strip()]
@@ -362,6 +402,12 @@ def get_indices():
     gc.collect()
     cache_set("indices", results, INDICES_CACHE_TTL)
     return {"data": results, "cached": False}
+
+
+@app.get("/sparks")
+def get_sparks(symbols: str = Query(...)):
+    raw_symbols = [s.strip() for s in symbols.split(",") if s.strip()]
+    return fetch_spark_batch(raw_symbols)
 
 
 @app.get("/health")

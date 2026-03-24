@@ -269,6 +269,7 @@ export default function App(){
   const [refreshing,setRef]  = useState(false);
   const [searchResults,setSearchResults] = useState([]);
   const [searching,setSearching] = useState(false);
+  const [sparkMap,setSparkMap] = useState({});
 
   // ── Portfolio state ──
   const [portfolio,setPortfolio] = useState(()=>{
@@ -312,6 +313,14 @@ export default function App(){
   useEffect(()=>{
     fetch(`${API}/indices`).then(r=>r.json()).then(j=>setIndices(j.data||[])).catch(()=>{});
   },[]);
+  useEffect(()=>{
+    if(!stocks.length) return;
+    const symbols = stocks.map(s=>s.symbol).join(",");
+    fetch(`${API}/sparks?symbols=${symbols}`)
+      .then(r=>r.json())
+      .then(j=>setSparkMap(j.data || {}))
+      .catch(()=>setSparkMap({}));
+  },[stocks]);
   useEffect(()=>{
     const iv=setInterval(()=>fetchQuotes(true),60000);
     return ()=>clearInterval(iv);
@@ -503,7 +512,7 @@ export default function App(){
   const isMarket=tab==="market"||!!query;
   const cardBase={background:C.card,border:`1px solid ${C.border}`,borderRadius:12,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"};
   const chgPill=pct=>({display:"inline-flex",alignItems:"center",gap:3,background:pct>=0?C.greenBg:C.redBg,color:pct>=0?C.green:C.red,padding:"3px 9px",borderRadius:20,fontSize:12,fontWeight:700,fontFamily:"'DM Mono',monospace",whiteSpace:"nowrap"});
-  const SparkData=s=>{ const base=s.price||100,n=20,d=[]; let p=base*0.97; for(let i=0;i<n;i++){p+=((Math.random()-0.48)*base*0.003);d.push(p);} d[n-1]=s.price||base; return d; };
+  const SparkData=s=>sparkMap[s.symbol]?.length ? sparkMap[s.symbol] : [s.price||100,s.price||100];
 
   const css=`
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
