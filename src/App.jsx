@@ -115,7 +115,60 @@ function Spark({data,pos,w=72,h=28}){
   );
 }
 
-function AreaChart({closes,pos,h=110,currency="$"}){
+function parseChartDate(value){
+  if(!value) return null;
+  const d = new Date(`${value}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function formatAxisLabel(value, period){
+  if(!value) return "";
+  if(period === "today") return value;
+  const d = parseChartDate(value);
+  if(!d) return value;
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  if(period === "1wk") return `${mm}/${dd}`;
+  if(period === "1mo") return `${mm}/${dd}`;
+  if(period === "3mo" || period === "6mo") return `${mm}/${dd}`;
+  return `${d.getFullYear()}/${mm}`;
+}
+
+function getSessionBounds(region){
+  if(region === "ASX") return { start: 10 * 60, end: 16 * 60, ticks: ["10:00", "13:00", "16:00"] };
+  return { start: 9 * 60 + 30, end: 16 * 60, ticks: ["09:30", "12:30", "16:00"] };
+}
+
+function getAxisTicks(closes, period, region, padX, innerW){
+  if(period === "today"){
+    const session = getSessionBounds(region);
+    return session.ticks.map(label => {
+      const [hh, mm] = label.split(":").map(Number);
+      const mins = hh * 60 + mm;
+      const ratio = (mins - session.start) / (session.end - session.start);
+      return { label, x: padX + innerW * ratio };
+    });
+  }
+
+  const count = closes.length;
+  if(count < 2) return [];
+  let desired = 3;
+  if(period === "1wk") desired = Math.min(count, 5);
+  if(period === "1mo") desired = Math.min(count, 5);
+  if(period === "3mo" || period === "6mo") desired = 4;
+  if(period === "1y" || period === "2y") desired = 4;
+
+  const ticks = [];
+  for(let i = 0; i < desired; i++){
+    const idx = Math.round((i * (count - 1)) / Math.max(desired - 1, 1));
+    const x = padX + innerW * (idx / (count - 1));
+    const item = closes[idx];
+    ticks.push({ label: formatAxisLabel(item?.date || item?.time || "", period), x });
+  }
+  return ticks.filter((tick, idx, arr) => idx === 0 || tick.label !== arr[idx - 1].label);
+}
+
+function AreaChart({closes,pos,h=110,currency="$",period="1mo",region="US"}){
   if(!closes||closes.length<2) return(
     <div style={{height:h,display:"flex",alignItems:"center",justifyContent:"center",color:C.text3,fontSize:13}}>暂无数据</div>
   );
@@ -124,22 +177,32 @@ function AreaChart({closes,pos,h=110,currency="$"}){
   const W=560;
   const padX = 14;
   const padTop = 8;
-  const padBottom = 16;
+  const padBottom = 22;
   const innerW = W - padX * 2;
-  const pts=closes.map((item,i)=>({
-    x: padX + (i/(closes.length-1))*innerW,
+  const session = getSessionBounds(region);
+  const pts=closes.map((item,i)=>{
+    let ratio = i/(closes.length-1);
+    if(period === "today" && item.date){
+      const [hh, mm] = item.date.split(":").map(Number);
+      const mins = hh * 60 + mm;
+      ratio = Math.max(0, Math.min(1, (mins - session.start) / (session.end - session.start)));
+    }
+    return {
+    x: padX + ratio*innerW,
     y: h-padBottom-((item.close-mn)/rng)*(h-padTop-padBottom),
     close: item.close,
     label: item.time || item.date || "",
-  }));
+    };
+  });
   const polylinePoints=pts.map(p=>`${p.x},${p.y}`).join(" ");
   const area=`${padX},${h-padBottom} ${polylinePoints} ${W-padX},${h-padBottom}`;
   const c=pos?C.green:C.red;
   const id=`ag-${Math.random().toString(36).slice(2)}`;
   const [hoverIdx,setHoverIdx] = useState(null);
   const active = hoverIdx==null ? pts[pts.length-1] : pts[hoverIdx];
-  const startLabel = pts[0]?.label || "";
-  const endLabel = pts[pts.length-1]?.label || "";
+  const startLabel = period === "today" ? session.ticks[0] : formatAxisLabel(closes[0]?.date || "", period);
+  const endLabel = period === "today" ? session.ticks[session.ticks.length - 1] : formatAxisLabel(closes[closes.length-1]?.date || "", period);
+  const axisTicks = getAxisTicks(closes, period, region, padX, innerW);
   return(
       <div className="modal-chart-shell" style={{position:"relative",height:h}}>
       <svg
@@ -190,9 +253,19 @@ function AreaChart({closes,pos,h=110,currency="$"}){
           </div>
         </div>
       </div>
-      <div style={{position:"absolute",left:14,right:14,bottom:0,display:"flex",justifyContent:"space-between",fontSize:10,color:C.text3,pointerEvents:"none"}}>
-        <span>{startLabel}</span>
-        <span>{endLabel}</span>
+      <div style={{position:"absolute",left:14,right:14,bottom:0,height:14,fontSize:10,color:C.text3,pointerEvents:"none"}}>
+        {axisTicks.map((tick, idx)=>(
+          <span
+            key={`${tick.label}-${idx}`}
+            style={{
+              position:"absolute",
+              left: `${((tick.x - padX) / innerW) * 100}%`,
+              transform:"translateX(-50%)",
+              whiteSpace:"nowrap",
+            }}>
+            {tick.label}
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -338,7 +411,7 @@ export default function App(){
       if(histPeriod==="today"){
         fetch(`${API}/intraday?symbol=${sym}`)
           .then(r=>r.json())
-          .then(j=>setHist((j.data||[]).map(d=>({date:d.time,close:d.close}))))
+          .then(j=>setHist((j.data||[]).map(d=>({time:d.time,close:d.close}))))
           .catch(()=>setHist([]));
       } else {
         fetch(`${API}/history?symbol=${sym}&period=${histPeriod}`)
@@ -1015,7 +1088,7 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
             </div>
             <div className="modal-chart" style={{borderRadius:8,overflow:"hidden",background:modal.pct>=0?C.greenBg:C.redBg,padding:"8px 10px",marginBottom:16,border:`1px solid ${C.border}`}}>
               {history.length>0
-                ?<AreaChart closes={history} pos={modal.pct>=0} h={100} currency={modal.region==="ASX"?"A$":"$"}/>
+                ?<AreaChart closes={history} pos={modal.pct>=0} h={100} currency={modal.region==="ASX"?"A$":"$"} period={histPeriod} region={modal.region}/>
                 :<div style={{height:100,display:"flex",alignItems:"center",justifyContent:"center"}}><Skeleton h={100}/></div>
               }
             </div>
