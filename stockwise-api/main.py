@@ -149,6 +149,79 @@ def fetch_stock(sym: str, display: str, include_meta: bool = False) -> dict:
     gc.collect()
     return result
 
+
+def fetch_stock_fallback(sym: str, display: str) -> dict:
+    ticker = yf.Ticker(sym)
+    hist = ticker.history(period="5d")
+    if hist.empty:
+        raise ValueError(f"No price history for {sym}")
+
+    closes = hist["Close"].dropna()
+    if closes.empty:
+        raise ValueError(f"No close data for {sym}")
+
+    price = float(closes.iloc[-1])
+    prev = float(closes.iloc[-2]) if len(closes) >= 2 else price
+    change = round(price - prev, 4)
+    pct = round((change / prev) * 100, 2) if prev else 0
+
+    try:
+        info = ticker.info or {}
+    except:
+        info = {}
+
+    region = "ASX" if sym.endswith(".AX") else "US"
+    quote_type = (info.get("quoteType") or "").upper()
+    is_etf = quote_type in ("ETF", "MUTUALFUND")
+
+    result = {
+        "symbol": display,
+        "yahooSym": sym,
+        "name": info.get("longName") or info.get("shortName") or display,
+        "price": round(price, 2),
+        "change": change,
+        "pct": pct,
+        "mkt": info.get("exchange") or ("ASX" if region == "ASX" else "US"),
+        "region": region,
+        "sector": info.get("sector") or info.get("category") or ("ETF" if is_etf else "—"),
+        "pe": round(float(info.get("trailingPE")), 1) if info.get("trailingPE") else None,
+        "vol": fmt_large(info.get("regularMarketVolume") or info.get("volume")),
+        "cap": fmt_large(info.get("marketCap")),
+        "isETF": is_etf,
+        "preMarket": {"price": info.get("preMarketPrice"), "pct": None},
+        "postMarket": {"price": info.get("postMarketPrice"), "pct": None},
+        "error": None,
+    }
+    del hist
+    gc.collect()
+    return result
+
+
+def search_symbols(q_up: str) -> list[str]:
+    candidates = []
+    seen = set()
+
+    def add(sym: str):
+        sym = (sym or "").upper().strip()
+        if not sym or sym in seen:
+            return
+        seen.add(sym)
+        candidates.append(sym)
+
+    add(normalize(q_up))
+    if not q_up.endswith(".AX") and "." not in q_up:
+        add(q_up)
+        add(q_up + ".AX")
+
+    try:
+        search = yf.Search(q_up, max_results=8)
+        for quote in getattr(search, "quotes", []) or []:
+            add(quote.get("symbol"))
+    except:
+        pass
+
+    return candidates
+
 @app.get("/quotes")
 def get_quotes(symbols: str = Query(...)):
     raw_symbols = [s.strip() for s in symbols.split(",") if s.strip()]
@@ -180,17 +253,20 @@ def get_quotes(symbols: str = Query(...)):
 @app.get("/search")
 def search(q: str = Query(..., min_length=1)):
     q_up = q.upper().strip()
-    candidates = [normalize(q_up)]
-    if not q_up.endswith(".AX") and "." not in q_up:
-        candidates.append(q_up + ".AX")
+    candidates = search_symbols(q_up)
     for sym in candidates:
+        display = sym.replace(".AX","")
         try:
-            display = q_up.replace(".AX","")
             stock   = fetch_stock(sym, display, include_meta=True)
             if stock["price"] is not None:
                 return {"query": q, "results": [stock]}
         except:
-            continue
+            try:
+                stock = fetch_stock_fallback(sym, display)
+                if stock["price"] is not None:
+                    return {"query": q, "results": [stock]}
+            except:
+                continue
     return {"query": q, "results": [], "error": f"未找到 {q_up}"}
 
 
