@@ -140,7 +140,7 @@ function AreaChart({closes,pos,h=110,currency="$"}){
   const active = hoverIdx==null ? pts[pts.length-1] : pts[hoverIdx];
   const activeIdx = hoverIdx==null ? pts.length-1 : hoverIdx;
   return(
-    <div style={{position:"relative",height:h}}>
+      <div className="modal-chart-shell" style={{position:"relative",height:h}}>
       <svg
         width="100%"
         viewBox={`0 0 ${W} ${h}`}
@@ -175,16 +175,16 @@ function AreaChart({closes,pos,h=110,currency="$"}){
         <circle cx={active.x} cy={active.y} r="4.5" fill={c} stroke="#fff" strokeWidth="2" />
         <rect x={0} y={0} width={W} height={h} fill="transparent" />
       </svg>
-      <div style={{position:"absolute",top:8,left:8,right:8,display:"flex",justifyContent:"space-between",gap:10,pointerEvents:"none"}}>
-        <div style={{background:"rgba(255,255,255,0.92)",border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 10px",boxShadow:"0 8px 24px rgba(0,0,0,0.06)"}}>
-          <div style={{fontSize:10,color:C.text3,marginBottom:2}}>{active.label}</div>
-          <div style={{fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:700,color:C.text}}>
+      <div className="modal-chart-meta" style={{position:"absolute",top:8,left:8,right:8,display:"flex",justifyContent:"space-between",gap:10,pointerEvents:"none"}}>
+        <div className="modal-chart-box" style={{background:"rgba(255,255,255,0.92)",border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 10px",boxShadow:"0 8px 24px rgba(0,0,0,0.06)"}}>
+          <div className="modal-chart-label" style={{fontSize:10,color:C.text3,marginBottom:2}}>{active.label}</div>
+          <div className="modal-chart-value" style={{fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:700,color:C.text}}>
             {currency}{active.close?.toFixed(2)}
           </div>
         </div>
-        <div style={{background:"rgba(255,255,255,0.92)",border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 10px",boxShadow:"0 8px 24px rgba(0,0,0,0.06)",textAlign:"right"}}>
-          <div style={{fontSize:10,color:C.text3,marginBottom:2}}>Point</div>
-          <div style={{fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:700,color:C.text}}>
+        <div className="modal-chart-box" style={{background:"rgba(255,255,255,0.92)",border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 10px",boxShadow:"0 8px 24px rgba(0,0,0,0.06)",textAlign:"right"}}>
+          <div className="modal-chart-label" style={{fontSize:10,color:C.text3,marginBottom:2}}>Point</div>
+          <div className="modal-chart-value" style={{fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:700,color:C.text}}>
             {activeIdx+1}/{pts.length}
           </div>
         </div>
@@ -551,6 +551,18 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
   .modal-inner{padding:18px!important;margin:0!important;border-radius:16px 16px 0 0!important;position:fixed!important;bottom:0!important;top:auto!important;max-height:92vh!important}
   .modal-wrap{align-items:flex-end!important}
   .stat-grid{grid-template-columns:repeat(2,1fr)!important}
+  .modal-header{margin-bottom:14px!important}
+  .modal-price-row{gap:8px!important;margin-bottom:10px!important}
+  .modal-price{font-size:28px!important;line-height:1.05!important}
+  .modal-chart{padding:6px 6px 2px!important}
+  .modal-chart-meta{top:6px!important;left:6px!important;right:6px!important;gap:6px!important}
+  .modal-chart-box{padding:5px 8px!important;border-radius:7px!important}
+  .modal-chart-label{font-size:9px!important}
+  .modal-chart-value{font-size:12px!important}
+  .modal-periods{gap:6px!important;margin-bottom:12px!important}
+  .modal-period-btn{padding:5px 8px!important;font-size:10px!important}
+  .modal-actions{position:sticky;bottom:0;background:${C.card};padding-top:10px!important;padding-bottom:calc(6px + env(safe-area-inset-bottom))!important}
+  .modal-actions button{padding:11px 9px!important;font-size:12px!important}
   .header-nav{display:none!important}
   .mobile-nav{display:flex!important}
   .pf-action{opacity:1!important}
@@ -928,7 +940,7 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
       {modal&&(
         <div className="modal-wrap" style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={()=>setModal(null)}>
           <div className="modal-inner" style={{background:C.card,borderRadius:16,border:`1px solid ${C.border}`,width:"100%",maxWidth:600,maxHeight:"88vh",overflowY:"auto",padding:24,boxShadow:"0 24px 64px rgba(0,0,0,0.15)"}} onClick={e=>e.stopPropagation()}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:18}}>
+            <div className="modal-header" style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:18}}>
               <div style={{display:"flex",alignItems:"center",gap:12}}>
                 <div style={{width:44,height:44,borderRadius:10,background:C.goldBg,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:C.accent}}>
                   {modal.symbol.slice(0,3)}
@@ -940,8 +952,8 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
               </div>
               <button onClick={()=>setModal(null)} style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:7,width:32,height:32,cursor:"pointer",fontSize:16,color:C.text3,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
             </div>
-            <div style={{marginBottom:6,display:"flex",alignItems:"baseline",gap:10,flexWrap:"wrap"}}>
-              <span style={{fontFamily:"'DM Mono',monospace",fontSize:36,fontWeight:700,letterSpacing:"-1px"}}>
+            <div className="modal-price-row" style={{marginBottom:6,display:"flex",alignItems:"baseline",gap:10,flexWrap:"wrap"}}>
+              <span className="modal-price" style={{fontFamily:"'DM Mono',monospace",fontSize:36,fontWeight:700,letterSpacing:"-1px"}}>
                 {modal.region==="ASX"?"A$":"$"}{modal.price?.toFixed(2)}
               </span>
               <span style={chgPill(modal.pct)}>{modal.pct>=0?"▲":"▼"} {Math.abs(modal.pct).toFixed(2)}%</span>
@@ -965,15 +977,15 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
                 )}
               </div>
             )}
-            <div style={{display:"flex",gap:4,marginBottom:10,flexWrap:"wrap"}}>
+            <div className="modal-periods" style={{display:"flex",gap:4,marginBottom:10,flexWrap:"wrap"}}>
               {["today","1wk","1mo","3mo","6mo","1y","2y"].map(p=>(
-                <button key={p} className="period-btn" onClick={()=>setHP(p)}
+                <button key={p} className="period-btn modal-period-btn" onClick={()=>setHP(p)}
                   style={{padding:"4px 10px",borderRadius:6,fontSize:11,fontFamily:"inherit",background:histPeriod===p?C.accent:"transparent",color:histPeriod===p?"#fff":C.text3,fontWeight:histPeriod===p?600:400,border:`1px solid ${histPeriod===p?C.accent:C.border}`}}>
                   {p==="today"?t.intraday:p}
                 </button>
               ))}
             </div>
-            <div style={{borderRadius:8,overflow:"hidden",background:modal.pct>=0?C.greenBg:C.redBg,padding:"8px 10px",marginBottom:16,border:`1px solid ${C.border}`}}>
+            <div className="modal-chart" style={{borderRadius:8,overflow:"hidden",background:modal.pct>=0?C.greenBg:C.redBg,padding:"8px 10px",marginBottom:16,border:`1px solid ${C.border}`}}>
               {history.length>0
                 ?<AreaChart closes={history} pos={modal.pct>=0} h={100} currency={modal.region==="ASX"?"A$":"$"}/>
                 :<div style={{height:100,display:"flex",alignItems:"center",justifyContent:"center"}}><Skeleton h={100}/></div>
@@ -1008,7 +1020,7 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
               {!aiLoad&&!aiText&&<p style={{fontSize:12,color:C.text3,lineHeight:1.6}}>{t.aiHint}</p>}
               {aiText&&<div style={{fontSize:13,lineHeight:1.8,color:C.text,whiteSpace:"pre-wrap"}} className="fu">{aiText}</div>}
             </div>
-            <div style={{display:"flex",gap:8}}>
+            <div className="modal-actions" style={{display:"flex",gap:8}}>
               <button onClick={()=>toggleWatch(modal.symbol)}
                 style={{flex:1,background:watch.includes(modal.symbol)?C.accent:C.bg,border:`1px solid ${watch.includes(modal.symbol)?C.accent:C.border}`,borderRadius:8,padding:"9px",color:watch.includes(modal.symbol)?"#fff":C.text3,fontFamily:"inherit",fontSize:13,fontWeight:600,cursor:"pointer"}}>
                 {watch.includes(modal.symbol)?t.inWatch:t.addWatch}
