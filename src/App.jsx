@@ -195,6 +195,8 @@ export default function App(){
   const [error,setError]     = useState(null);
   const [lastUpd,setLastU]   = useState(null);
   const [refreshing,setRef]  = useState(false);
+  const [searchResults,setSearchResults] = useState([]);
+  const [searching,setSearching] = useState(false);
 
   // ── Portfolio state ──
   const [portfolio,setPortfolio] = useState(()=>{
@@ -266,6 +268,43 @@ export default function App(){
       .catch(()=>setNLoad(false));
   },[tab,news.length]);
 
+  useEffect(()=>{
+    const q = query.trim();
+    if(!q){
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+
+    const localHit = stocks.some(
+      s => s.symbol.toLowerCase() === q.toLowerCase() || s.name.toLowerCase().includes(q.toLowerCase())
+    );
+    if(localHit){
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+
+    let cancelled = false;
+    setSearching(true);
+    fetch(`${API}/search?q=${encodeURIComponent(q)}`)
+      .then(r=>r.json())
+      .then(j=>{
+        if(cancelled) return;
+        setSearchResults(j.results || []);
+      })
+      .catch(()=>{
+        if(cancelled) return;
+        setSearchResults([]);
+      })
+      .finally(()=>{
+        if(cancelled) return;
+        setSearching(false);
+      });
+
+    return ()=>{ cancelled = true; };
+  },[query,stocks]);
+
   // ── Portfolio: fetch price for a symbol not in stocks ──
   const getPrice = sym => stocks.find(s=>s.symbol===sym.toUpperCase());
 
@@ -328,11 +367,18 @@ export default function App(){
   const fmtAbs = (v,dec=2)=>v==null?"—":Math.abs(v).toFixed(dec);
 
   const pn = v=>parseFloat(String(v).replace(/[^0-9.]/g,""));
-  const visible = stocks.filter(s=>{
+  const localVisible = stocks.filter(s=>{
     const mr=region==="ALL"||s.region===region;
     const mt=typeF==="ALL"||(typeF==="ETF"&&s.isETF)||(typeF==="STOCK"&&!s.isETF);
     const mq=!query||s.symbol.toLowerCase().includes(query.toLowerCase())||s.name.toLowerCase().includes(query.toLowerCase());
     return mr&&mt&&mq;
+  });
+  const visible = [...localVisible, ...searchResults.filter(
+    rs=>!localVisible.some(ls=>ls.symbol===rs.symbol)
+  )].filter(s=>{
+    const mr=region==="ALL"||s.region===region;
+    const mt=typeF==="ALL"||(typeF==="ETF"&&s.isETF)||(typeF==="STOCK"&&!s.isETF);
+    return mr&&mt;
   }).sort((a,b)=>{
     if(sort.col==="symbol") return sort.dir*(a.symbol<b.symbol?-1:1);
     if(sort.col==="pct")    return sort.dir*(a.pct-b.pct);
@@ -509,7 +555,7 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
                   </button>
                 ))}
               </div>
-              <span style={{marginLeft:"auto",fontSize:12,color:C.text3}}>{loading?"…":t.results(visible.length)}</span>
+              <span style={{marginLeft:"auto",fontSize:12,color:C.text3}}>{loading||searching?"…":t.results(visible.length)}</span>
             </div>
             <div style={{overflowX:"auto"}}>
               <table style={{width:"100%",borderCollapse:"collapse",minWidth:600}}>
