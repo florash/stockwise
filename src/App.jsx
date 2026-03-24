@@ -138,7 +138,8 @@ function AreaChart({closes,pos,h=110,currency="$"}){
   const id=`ag-${Math.random().toString(36).slice(2)}`;
   const [hoverIdx,setHoverIdx] = useState(null);
   const active = hoverIdx==null ? pts[pts.length-1] : pts[hoverIdx];
-  const activeIdx = hoverIdx==null ? pts.length-1 : hoverIdx;
+  const startLabel = pts[0]?.label || "";
+  const endLabel = pts[pts.length-1]?.label || "";
   return(
       <div className="modal-chart-shell" style={{position:"relative",height:h}}>
       <svg
@@ -183,11 +184,15 @@ function AreaChart({closes,pos,h=110,currency="$"}){
           </div>
         </div>
         <div className="modal-chart-box" style={{background:"rgba(255,255,255,0.92)",border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 10px",boxShadow:"0 8px 24px rgba(0,0,0,0.06)",textAlign:"right"}}>
-          <div className="modal-chart-label" style={{fontSize:10,color:C.text3,marginBottom:2}}>Point</div>
+          <div className="modal-chart-label" style={{fontSize:10,color:C.text3,marginBottom:2}}>Range</div>
           <div className="modal-chart-value" style={{fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:700,color:C.text}}>
-            {activeIdx+1}/{pts.length}
+            {startLabel} - {endLabel}
           </div>
         </div>
+      </div>
+      <div style={{position:"absolute",left:14,right:14,bottom:0,display:"flex",justifyContent:"space-between",fontSize:10,color:C.text3,pointerEvents:"none"}}>
+        <span>{startLabel}</span>
+        <span>{endLabel}</span>
       </div>
     </div>
   );
@@ -322,24 +327,30 @@ export default function App(){
       .catch(()=>setSparkMap({}));
   },[stocks]);
   useEffect(()=>{
-    const iv=setInterval(()=>fetchQuotes(true),60000);
+    const iv=setInterval(()=>fetchQuotes(true),20000);
     return ()=>clearInterval(iv);
   },[fetchQuotes]);
   useEffect(()=>{
     if(!modal) return;
     setHist([]);
     const sym=modal.yahooSym||modal.symbol;
-    if(histPeriod==="today"){
-      fetch(`${API}/intraday?symbol=${sym}`)
-        .then(r=>r.json())
-        .then(j=>setHist((j.data||[]).map(d=>({date:d.time,close:d.close}))))
-        .catch(()=>setHist([]));
-    } else {
-      fetch(`${API}/history?symbol=${sym}&period=${histPeriod}`)
-        .then(r=>r.json())
-        .then(j=>setHist(j.data||[]))
-        .catch(()=>setHist([]));
-    }
+    const loadChart = ()=>{
+      if(histPeriod==="today"){
+        fetch(`${API}/intraday?symbol=${sym}`)
+          .then(r=>r.json())
+          .then(j=>setHist((j.data||[]).map(d=>({date:d.time,close:d.close}))))
+          .catch(()=>setHist([]));
+      } else {
+        fetch(`${API}/history?symbol=${sym}&period=${histPeriod}`)
+          .then(r=>r.json())
+          .then(j=>setHist(j.data||[]))
+          .catch(()=>setHist([]));
+      }
+    };
+    loadChart();
+    if(histPeriod!=="today") return;
+    const iv = setInterval(loadChart, 20000);
+    return ()=>clearInterval(iv);
   },[modal,histPeriod]);
 
   useEffect(()=>{
