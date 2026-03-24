@@ -426,7 +426,7 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
               />
             </div>
             <nav className="header-nav" style={{display:"flex",gap:2,marginLeft:8}}>
-              {[["market",t.tabMarket],["watchlist",t.tabWatch],["etf",t.tabEtf],["portfolio",t.tabPortfolio]].map(([v,l])=>(
+             {[["market",t.tabMarket],["watchlist",t.tabWatch],["etf",t.tabEtf],["portfolio",t.tabPortfolio],["news",t.tabNews]].map(([v,l])=>(
                 <button key={v} className="tab-btn" onClick={()=>{setTab(v);setQuery("");}}
                   style={{padding:"6px 14px",fontSize:13,fontWeight:tab===v?600:400,color:tab===v?C.text:C.text3,borderBottom:tab===v?`2px solid ${C.accent}`:"2px solid transparent"}}>
                   {l}
@@ -443,7 +443,7 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
           </div>
         </div>
         <div className="mobile-nav" style={{borderTop:`1px solid ${C.border}`,justifyContent:"space-around"}}>
-          {[["market",t.tabMarket],["watchlist",t.tabWatch],["etf",t.tabEtf],["portfolio",t.tabPortfolio]].map(([v,l])=>(
+        {[["market",t.tabMarket],["watchlist",t.tabWatch],["etf",t.tabEtf],["portfolio",t.tabPortfolio],["news",t.tabNews]].map(([v,l])=>(
             <button key={v} className="tab-btn" onClick={()=>{setTab(v);setQuery("");}}
               style={{flex:1,padding:"10px 0",fontSize:12,fontWeight:tab===v?600:400,color:tab===v?C.accent:C.text3,borderBottom:tab===v?`2px solid ${C.accent}`:"2px solid transparent",textAlign:"center"}}>
               {l}
@@ -872,6 +872,79 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
         </div>
       )}
 
+{/* ── NEWS ── */}
+        {tab==="news"&&!query&&(
+          <div className="fu">
+            <div style={{marginBottom:18}}>
+              <h2 style={{fontSize:20,fontWeight:700}}>{t.newsTitle}</h2>
+              <p style={{fontSize:13,color:C.text3,marginTop:3}}>{t.newsSub}</p>
+            </div>
+
+            {/* Region filter */}
+            <div style={{display:"flex",gap:2,background:C.bg,borderRadius:8,padding:3,border:`1px solid ${C.border}`,width:"fit-content",marginBottom:20}}>
+              {[["ALL",t.newsAll],["US",t.newsUS],["ASX",t.newsASX]].map(([v,l])=>(
+                <button key={v} className="seg" onClick={()=>setNReg(v)}
+                  style={{padding:"4px 14px",borderRadius:6,fontSize:12,fontFamily:"inherit",background:newsReg===v?C.card:"transparent",color:newsReg===v?C.text:C.text3,fontWeight:newsReg===v?600:400,border:newsReg===v?`1px solid ${C.border}`:"1px solid transparent",boxShadow:newsReg===v?"0 1px 2px rgba(0,0,0,0.06)":"none"}}>
+                  {l}
+                </button>
+              ))}
+            </div>
+
+            {/* Fetch news on mount */}
+            {news.length===0&&!newsLoad&&(()=>{
+              setNLoad(true);
+              fetch(`${API}/news`).then(r=>r.json()).then(j=>{setNews(j.data||[]);setNLoad(false);}).catch(()=>setNLoad(false));
+              return null;
+            })()}
+
+            {newsLoad&&(
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:14}}>
+                {Array(6).fill(0).map((_,i)=>(
+                  <div key={i} style={{...cardBase,padding:18}}>
+                    <Skeleton h={14} w="60%" radius={4}/>
+                    <div style={{marginTop:10}}><Skeleton h={12} radius={4}/></div>
+                    <div style={{marginTop:6}}><Skeleton h={12} w="80%" radius={4}/></div>
+                    <div style={{marginTop:12}}><Skeleton h={10} w="40%" radius={4}/></div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!newsLoad&&news.length===0&&(
+              <div style={{...cardBase,padding:40,textAlign:"center",color:C.text3}}>{t.newsEmpty}</div>
+            )}
+
+            {!newsLoad&&news.length>0&&(
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:14}}>
+                {news
+                  .filter(n=>newsReg==="ALL"||n.region===newsReg)
+                  .map((n,i)=>(
+                    <a key={i} href={n.link} target="_blank" rel="noopener noreferrer"
+                      style={{textDecoration:"none",color:"inherit",display:"block"}}>
+                      <div className="news-card" style={{...cardBase,padding:18,transition:"all 0.18s",cursor:"pointer"}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,gap:8}}>
+                          <span style={{fontSize:10,background:C.bg2,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 8px",fontWeight:600,color:C.text3,letterSpacing:"0.04em",flexShrink:0}}>
+                            {n.symbol}
+                          </span>
+                          <span style={{fontSize:10,color:n.region==="ASX"?"#0ea5e9":"#8b5cf6",fontWeight:600,flexShrink:0}}>
+                            {n.region==="ASX"?"🇦🇺 ASX":"🇺🇸 US"}
+                          </span>
+                          <span style={{fontSize:10,color:C.text3,marginLeft:"auto",flexShrink:0}}>
+                            {n.published ? new Date(n.published*1000).toLocaleDateString() : ""}
+                          </span>
+                        </div>
+                        <div style={{fontSize:13,fontWeight:600,lineHeight:1.5,color:C.text,marginBottom:8,display:"-webkit-box",WebkitLineClamp:3,WebkitBoxOrient:"vertical",overflow:"hidden"}}>
+                          {n.title}
+                        </div>
+                        <div style={{fontSize:11,color:C.text3}}>{n.source}</div>
+                      </div>
+                    </a>
+                  ))
+                }
+              </div>
+            )}
+          </div>
+        )}
       {/* ── PORTFOLIO ADD/EDIT MODAL ── */}
       {pfModal&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={()=>setPfModal(false)}>
