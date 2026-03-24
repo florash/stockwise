@@ -115,29 +115,81 @@ function Spark({data,pos,w=72,h=28}){
   );
 }
 
-function AreaChart({closes,pos,h=110}){
+function AreaChart({closes,pos,h=110,currency="$"}){
   if(!closes||closes.length<2) return(
     <div style={{height:h,display:"flex",alignItems:"center",justifyContent:"center",color:C.text3,fontSize:13}}>暂无数据</div>
   );
   const data=closes.map(d=>d.close);
   const mn=Math.min(...data),mx=Math.max(...data),rng=mx-mn||1;
   const W=560;
-  const pts=data.map((v,i)=>[(i/(data.length-1))*W,h-((v-mn)/rng)*(h-12)-6]);
-  const line=pts.map(p=>p.join(",")).join(" ");
-  const area=`0,${h} ${line} ${W},${h}`;
+  const padX = 14;
+  const padTop = 8;
+  const padBottom = 16;
+  const innerW = W - padX * 2;
+  const pts=closes.map((item,i)=>({
+    x: padX + (i/(closes.length-1))*innerW,
+    y: h-padBottom-((item.close-mn)/rng)*(h-padTop-padBottom),
+    close: item.close,
+    label: item.time || item.date || "",
+  }));
+  const polylinePoints=pts.map(p=>`${p.x},${p.y}`).join(" ");
+  const area=`${padX},${h-padBottom} ${polylinePoints} ${W-padX},${h-padBottom}`;
   const c=pos?C.green:C.red;
   const id=`ag-${Math.random().toString(36).slice(2)}`;
+  const [hoverIdx,setHoverIdx] = useState(null);
+  const active = hoverIdx==null ? pts[pts.length-1] : pts[hoverIdx];
+  const activeIdx = hoverIdx==null ? pts.length-1 : hoverIdx;
   return(
-    <svg width="100%" viewBox={`0 0 ${W} ${h}`} preserveAspectRatio="none" style={{display:"block"}}>
-      <defs>
-        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={c} stopOpacity="0.18"/>
-          <stop offset="100%" stopColor={c} stopOpacity="0.01"/>
-        </linearGradient>
-      </defs>
-      <polygon points={area} fill={`url(#${id})`}/>
-      <polyline points={line} fill="none" stroke={c} strokeWidth="2" strokeLinejoin="round"/>
-    </svg>
+    <div style={{position:"relative",height:h}}>
+      <svg
+        width="100%"
+        viewBox={`0 0 ${W} ${h}`}
+        preserveAspectRatio="none"
+        style={{display:"block",overflow:"visible",touchAction:"none"}}
+        onPointerLeave={()=>setHoverIdx(null)}
+        onPointerMove={e=>{
+          const rect = e.currentTarget.getBoundingClientRect();
+          const px = ((e.clientX - rect.left) / rect.width) * W;
+          let nearest = 0;
+          let best = Infinity;
+          for(let i=0;i<pts.length;i++){
+            const dist = Math.abs(pts[i].x - px);
+            if(dist < best){
+              best = dist;
+              nearest = i;
+            }
+          }
+          setHoverIdx(nearest);
+        }}>
+        <defs>
+          <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={c} stopOpacity="0.18"/>
+            <stop offset="100%" stopColor={c} stopOpacity="0.01"/>
+          </linearGradient>
+        </defs>
+        <line x1={padX} y1={h-padBottom} x2={W-padX} y2={h-padBottom} stroke={C.border} strokeWidth="1"/>
+        <polygon points={area} fill={`url(#${id})`}/>
+        <polyline points={polylinePoints} fill="none" stroke={c} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round"/>
+        <line x1={active.x} y1={padTop} x2={active.x} y2={h-padBottom} stroke={c} strokeDasharray="4 4" strokeOpacity="0.55" />
+        <line x1={padX} y1={active.y} x2={W-padX} y2={active.y} stroke={c} strokeDasharray="4 4" strokeOpacity="0.22" />
+        <circle cx={active.x} cy={active.y} r="4.5" fill={c} stroke="#fff" strokeWidth="2" />
+        <rect x={0} y={0} width={W} height={h} fill="transparent" />
+      </svg>
+      <div style={{position:"absolute",top:8,left:8,right:8,display:"flex",justifyContent:"space-between",gap:10,pointerEvents:"none"}}>
+        <div style={{background:"rgba(255,255,255,0.92)",border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 10px",boxShadow:"0 8px 24px rgba(0,0,0,0.06)"}}>
+          <div style={{fontSize:10,color:C.text3,marginBottom:2}}>{active.label}</div>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:700,color:C.text}}>
+            {currency}{active.close?.toFixed(2)}
+          </div>
+        </div>
+        <div style={{background:"rgba(255,255,255,0.92)",border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 10px",boxShadow:"0 8px 24px rgba(0,0,0,0.06)",textAlign:"right"}}>
+          <div style={{fontSize:10,color:C.text3,marginBottom:2}}>Point</div>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:13,fontWeight:700,color:C.text}}>
+            {activeIdx+1}/{pts.length}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -913,7 +965,7 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
             </div>
             <div style={{borderRadius:8,overflow:"hidden",background:modal.pct>=0?C.greenBg:C.redBg,padding:"8px 10px",marginBottom:16,border:`1px solid ${C.border}`}}>
               {history.length>0
-                ?<AreaChart closes={history} pos={modal.pct>=0} h={100}/>
+                ?<AreaChart closes={history} pos={modal.pct>=0} h={100} currency={modal.region==="ASX"?"A$":"$"}/>
                 :<div style={{height:100,display:"flex",alignItems:"center",justifyContent:"center"}}><Skeleton h={100}/></div>
               }
             </div>
