@@ -1,16 +1,68 @@
-# React + Vite
+# Stockwise
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Stockwise is a React + Vite stock dashboard with a lightweight FastAPI backend powered by Yahoo Finance.
 
-Currently, two official plugins are available:
+## Repo Structure
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- `src/` — frontend app
+- `api/index.py` — FastAPI backend
+- `requirements.txt` — Python backend dependencies
 
-## React Compiler
+## Local Development
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Run the backend:
 
-## Expanding the ESLint configuration
+```bash
+cd /Users/florah/Desktop/stockwise
+npm run dev:api
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Run the frontend in a second terminal:
+
+```bash
+cd /Users/florah/Desktop/stockwise
+npm run dev
+```
+
+The Vite dev server proxies `/api/*` to `http://127.0.0.1:8000`.
+
+## Production Deployment
+
+Recommended setup:
+
+1. Frontend on Vercel
+2. Backend on Railway
+
+### Frontend
+
+Set this environment variable on Vercel:
+
+```bash
+VITE_API_BASE=https://your-backend-domain.example.com
+```
+
+Build command:
+
+```bash
+npm run build
+```
+
+### Backend
+
+Deploy the repo as a Python service using:
+
+```bash
+uvicorn api.index:app --host 0.0.0.0 --port $PORT
+```
+
+Install command:
+
+```bash
+pip install -r requirements.txt
+```
+
+## Notes
+
+- Yahoo Finance is free but can still be slower than paid feeds.
+- The UI is designed to render immediately and hydrate data asynchronously.
+- AI analysis currently uses a local fallback summary in the frontend.

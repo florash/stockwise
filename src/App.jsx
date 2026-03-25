@@ -1,6 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-
-const API = "https://stockwise-76dt.onrender.com";
+import {
+  buildLocalAiAnalysis,
+  fetchBatchQuotes,
+  fetchChartSeries,
+  fetchIndexRows,
+  fetchNews,
+  fetchSparkMap,
+  fetchSearchQuote,
+  getDisplaySymbol,
+  normalizeSymbol,
+} from "./lib/twelveData";
 
 const C = {
   bg:"#f8f9fb", bg2:"#f1f3f5", card:"#ffffff", border:"#e8eaed",
@@ -12,13 +21,7 @@ const C = {
 };
 
 const DEFAULT_SYMBOLS = [
-  // 美股核心
-  "AAPL","NVDA","MSFT","TSLA","AMZN","META","GOOGL","SPY","QQQ","GLD",
-  // 澳股核心
-  "BHP","CBA","CSL","RIO","NAB","WBC","ANZ","WES","MQG","TLS",
-  "FMG","WOW","XRO","GMG","RMD",
-  // 热门ETF
-  "VAS","NDQ","A200","VGS","VDHG",
+  "AAPL","NVDA","MSFT","TSLA","BHP","CBA","SPY","A200",
 ];
 
 const T = {
@@ -40,7 +43,7 @@ const T = {
     aiAnalyzing:["分析财务数据中…","获取市场情绪…","生成分析报告…"],
     aiRetry:"↻ 重新分析", addWatch:"☆ 加入自选", inWatch:"★ 已加自选",
     na:"N/A", loading:"加载中…", error:"数据加载失败",
-    retry:"重试", backendTip:"请确认后端已启动",
+    retry:"重试", backendTip:"请确认本地 Yahoo API 已运行（npm run dev:api）",
     refreshing:"更新中…", lastUpdated:"更新",
     indicesEmpty:"指数数据暂时不可用",
     preMarket:"盘前", postMarket:"盘后", intraday:"分时",
@@ -55,7 +58,6 @@ const T = {
     newsTitle:"财经新闻", newsSub:"实时市场资讯",
     newsAll:"全部", newsUS:"🇺🇸 美股", newsASX:"🇦🇺 澳股",
     newsLoading:"加载新闻中…", newsEmpty:"暂无新闻",
-    aiPrompt:(s)=>`你是一位专业的证券分析师。请用简洁的中文（约200字）分析：\n股票：${s.name}（${s.symbol}）| 市场：${s.mkt} | 板块：${s.sector}\n价格：${s.price} | 涨跌：${s.pct}% | 市值：${s.cap}${s.pe?` | P/E：${s.pe}`:"（ETF）"}\n\n请简明分析：1）近期表现 2）核心投资逻辑 3）主要风险。专业客观。`,
   },
   en:{
     brand:"Stockwise",
@@ -75,7 +77,7 @@ const T = {
     aiAnalyzing:["Analysing financials…","Reading sentiment…","Generating report…"],
     aiRetry:"↻ Re-analyse", addWatch:"☆ Watchlist", inWatch:"★ Watching",
     na:"N/A", loading:"Loading…", error:"Failed to load",
-    retry:"Retry", backendTip:"Make sure backend is running",
+    retry:"Retry", backendTip:"Make sure the local Yahoo API is running (npm run dev:api)",
     refreshing:"Refreshing…", lastUpdated:"Updated",
     indicesEmpty:"Indices temporarily unavailable",
     preMarket:"Pre", postMarket:"Post", intraday:"Today",
@@ -90,7 +92,6 @@ const T = {
     newsTitle:"Market News", newsSub:"Live financial headlines",
     newsAll:"All", newsUS:"🇺🇸 US", newsASX:"🇦🇺 ASX",
     newsLoading:"Loading news…", newsEmpty:"No news available",
-    aiPrompt:(s)=>`You are a professional securities analyst. Provide a concise analysis (~150 words) of:\nStock: ${s.name} (${s.symbol}) | Market: ${s.mkt} | Sector: ${s.sector}\nPrice: ${s.price} | Change: ${s.pct}% | Mkt Cap: ${s.cap}${s.pe?` | P/E: ${s.pe}`:" (ETF)"}\n\nCover: 1) Recent performance 2) Core investment thesis 3) Key risks. Professional and objective.`,
   },
 };
 
@@ -304,24 +305,6 @@ function DonutChart({slices, size=120}){
 
 const PORTFOLIO_COLORS = ["#1a1a2e","#f59e0b","#059669","#dc2626","#6366f1","#0ea5e9","#8b5cf6","#ec4899","#14b8a6","#f97316"];
 
-function buildFallbackAnalysis(stock, lang){
-  const direction = stock.pct >= 0;
-  if(lang === "zh"){
-    return [
-      `${stock.symbol} 目前报价 ${stock.region==="ASX"?"A$":"$"}${stock.price?.toFixed(2) ?? "—"}，日内 ${direction ? "上涨" : "下跌"} ${Math.abs(stock.pct ?? 0).toFixed(2)}%。`,
-      `近期表现上，价格动能${direction ? "偏强" : "偏弱"}，短线情绪会更容易受财报、行业消息和大盘波动放大。`,
-      `投资逻辑方面，${stock.name || stock.symbol} 当前主要看点在于 ${stock.sector || "行业景气度"}、盈利兑现能力，以及市场是否继续给予估值支持。`,
-      `风险方面，需要留意估值回落、成交量变化、业绩不及预期，以及高波动阶段带来的回撤。`
-    ].join("");
-  }
-  return [
-    `${stock.symbol} is trading at ${stock.region==="ASX"?"A$":"$"}${stock.price?.toFixed(2) ?? "—"}, with a daily move of ${Math.abs(stock.pct ?? 0).toFixed(2)}% ${direction ? "up" : "down"}.`,
-    `Near-term performance looks ${direction ? "constructive" : "soft"}, and sentiment is likely to stay sensitive to earnings, sector headlines, and broader market moves.`,
-    `The core thesis depends on execution, demand resilience, and whether the market continues to support current valuation levels for ${stock.name || stock.symbol}.`,
-    `Key risks include multiple compression, weaker-than-expected results, and sharper drawdowns if momentum fades.`
-  ].join(" ");
-}
-
 export default function App(){
   const [lang,setLang]    = useState("zh");
   const [tab,setTab]      = useState("market");
@@ -368,7 +351,10 @@ export default function App(){
   const pfQtyInputRef = useRef(null);
 
   const t = T[lang];
-  const normalizePortfolioSymbol = value => value.replace(/[^A-Za-z0-9.]/g,"").toUpperCase();
+  const normalizePortfolioSymbol = value => {
+    const cleaned = value.replace(/[^A-Za-z0-9.]/g,"").toUpperCase();
+    return getDisplaySymbol(normalizeSymbol(cleaned, "AUTO"));
+  };
 
   // persist watch + portfolio
   useEffect(()=>{ localStorage.setItem("sw_watch", JSON.stringify(watch)); },[watch]);
@@ -378,29 +364,25 @@ export default function App(){
     if(isRefresh) setRef(true); else setLoad(true);
     setError(null);
     try{
-      const res = await fetch(`${API}/quotes?symbols=${DEFAULT_SYMBOLS.join(",")}`);
-      if(!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      setStocks(json.data.filter(s=>s.price!=null&&!s.error));
+      const json = await fetchBatchQuotes(DEFAULT_SYMBOLS);
+      setStocks(json.filter(s=>s.price!=null&&!s.error));
       setLastU(new Date());
-    }catch(e){ setError(e.message); }
+    }catch(e){ setError(e.message || String(e)); }
     finally{ setLoad(false); setRef(false); }
   },[]);
 
   useEffect(()=>{ fetchQuotes(); },[fetchQuotes]);
   useEffect(()=>{
-    fetch(`${API}/indices`).then(r=>r.json()).then(j=>setIndices(j.data||[])).catch(()=>{});
+    fetchIndexRows().then(setIndices).catch(()=>setIndices([]));
   },[]);
   useEffect(()=>{
     if(!stocks.length) return;
-    const symbols = stocks.map(s=>s.symbol).join(",");
-    fetch(`${API}/sparks?symbols=${symbols}`)
-      .then(r=>r.json())
-      .then(j=>setSparkMap(j.data || {}))
+    fetchSparkMap(stocks.map(s=>s.symbol))
+      .then(setSparkMap)
       .catch(()=>setSparkMap({}));
   },[stocks]);
   useEffect(()=>{
-    const iv=setInterval(()=>fetchQuotes(true),20000);
+    const iv=setInterval(()=>fetchQuotes(true),30000);
     return ()=>clearInterval(iv);
   },[fetchQuotes]);
   useEffect(()=>{
@@ -408,21 +390,13 @@ export default function App(){
     setHist([]);
     const sym=modal.yahooSym||modal.symbol;
     const loadChart = ()=>{
-      if(histPeriod==="today"){
-        fetch(`${API}/intraday?symbol=${sym}`)
-          .then(r=>r.json())
-          .then(j=>setHist((j.data||[]).map(d=>({time:d.time,close:d.close}))))
-          .catch(()=>setHist([]));
-      } else {
-        fetch(`${API}/history?symbol=${sym}&period=${histPeriod}`)
-          .then(r=>r.json())
-          .then(j=>setHist(j.data||[]))
-          .catch(()=>setHist([]));
-      }
+      fetchChartSeries(sym, histPeriod)
+        .then(j=>setHist(j.points || []))
+        .catch(()=>setHist([]));
     };
     loadChart();
-    if(histPeriod!=="today") return;
-    const iv = setInterval(loadChart, 20000);
+    if(histPeriod!=="today") return undefined;
+    const iv = setInterval(loadChart, 10000);
     return ()=>clearInterval(iv);
   },[modal,histPeriod]);
 
@@ -430,10 +404,9 @@ export default function App(){
     if(tab!=="news") return;
     if(news.length>0) return;
     setNLoad(true);
-    fetch(`${API}/news`)
-      .then(r=>r.json())
-      .then(j=>{ setNews(j.data||[]); setNLoad(false); })
-      .catch(()=>setNLoad(false));
+    fetchNews()
+      .then(data=>{ setNews(data); setNLoad(false); })
+      .catch(()=>{ setNews([]); setNLoad(false); });
   },[tab,news.length]);
 
   useEffect(()=>{
@@ -455,11 +428,10 @@ export default function App(){
 
     let cancelled = false;
     setSearching(true);
-    fetch(`${API}/search?q=${encodeURIComponent(q)}`)
-      .then(r=>r.json())
-      .then(j=>{
+    fetchSearchQuote(q, region==="ALL" ? "AUTO" : region)
+      .then(result=>{
         if(cancelled) return;
-        setSearchResults(j.results || []);
+        setSearchResults(result ? [result] : []);
       })
       .catch(()=>{
         if(cancelled) return;
@@ -471,7 +443,7 @@ export default function App(){
       });
 
     return ()=>{ cancelled = true; };
-  },[query,stocks]);
+  },[query,stocks,region]);
 
   // ── Portfolio: fetch price for a symbol not in stocks ──
   const getPrice = sym => stocks.find(s=>s.symbol===sym.toUpperCase());
@@ -512,9 +484,7 @@ export default function App(){
     if(!exists){
       setPfSearching(true);
       try{
-        const r = await fetch(`${API}/search?q=${sym}`);
-        const j = await r.json();
-        if(j.results?.length){ exists=j.results[0]; }
+        exists = await fetchSearchQuote(sym, "AUTO");
       }catch{}
       setPfSearching(false);
     }
@@ -555,6 +525,8 @@ export default function App(){
     if(sort.col==="cap")    return sort.dir*(pn(a.cap)-pn(b.cap));
     return 0;
   });
+  const showTrendColumn = visible.some(s=>sparkMap[s.symbol]?.length > 1);
+  const showCapColumn = visible.some(s=>s.cap && s.cap !== "N/A");
 
   const setSort2 = col=>setSort(p=>p.col===col?{...p,dir:-p.dir}:{col,dir:-1});
   const Arr=({col})=>sort.col!==col?<span style={{opacity:0.3,marginLeft:3}}>↕</span>:<span style={{marginLeft:3}}>{sort.dir===-1?"↓":"↑"}</span>;
@@ -573,22 +545,10 @@ export default function App(){
     const msgs=t.aiAnalyzing; let i=0; setAiMsg(msgs[0]);
     const iv=setInterval(()=>{ i=(i+1)%msgs.length; setAiMsg(msgs[i]); },1100);
     try{
-      const r=await fetch(`${API}/ai`,{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          messages:[{role:"user",content:t.aiPrompt(stock)}]
-        })
-      });
-      const d=await r.json();
-      const text = d.content?.map(b=>b.text||"").join("").trim();
-      if(text){
-        setAiT(text);
-      } else {
-        setAiT(buildFallbackAnalysis(stock, lang));
-      }
+      await new Promise(resolve=>setTimeout(resolve, 900));
+      setAiT(buildLocalAiAnalysis(stock, lang));
     }catch{
-      setAiT(buildFallbackAnalysis(stock, lang));
+      setAiT(buildLocalAiAnalysis(stock, lang));
     }
     finally{ clearInterval(iv); setAiL(false); }
   };
@@ -596,7 +556,15 @@ export default function App(){
   const isMarket=tab==="market"||!!query;
   const cardBase={background:C.card,border:`1px solid ${C.border}`,borderRadius:12,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"};
   const chgPill=pct=>({display:"inline-flex",alignItems:"center",gap:3,background:pct>=0?C.greenBg:C.redBg,color:pct>=0?C.green:C.red,padding:"3px 9px",borderRadius:20,fontSize:12,fontWeight:700,fontFamily:"'DM Mono',monospace",whiteSpace:"nowrap"});
-  const SparkData=s=>sparkMap[s.symbol]?.length ? sparkMap[s.symbol] : [s.price||100,s.price||100];
+  const SparkData=s=>{
+    if(sparkMap[s.symbol]?.length > 1) return sparkMap[s.symbol];
+    const price = s.price || 100;
+    const prev = s.change!=null ? price - s.change : price;
+    const mid1 = prev + (price - prev) * 0.25;
+    const mid2 = prev + (price - prev) * 0.55;
+    const mid3 = prev + (price - prev) * 0.78;
+    return [prev, mid1, mid2, mid3, price];
+  };
 
   const css=`
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
@@ -743,6 +711,7 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
         {error&&(
           <div style={{background:C.redBg,border:`1px solid ${C.red}33`,borderRadius:10,padding:"12px 16px",marginBottom:16,display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
             <span style={{color:C.red,fontSize:13}}>{t.error}: {error}</span>
+            <span style={{fontSize:12,color:C.text3}}>{t.backendTip}</span>
             <button onClick={()=>fetchQuotes()} style={{background:C.red,border:"none",borderRadius:6,padding:"6px 14px",color:"#fff",cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:600,marginLeft:"auto"}}>{t.retry}</button>
           </div>
         )}
@@ -777,9 +746,9 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
                       {col:"symbol",label:t.colSymbol,align:"left",  w:"30%"},
                       {col:"price", label:t.colPrice, align:"right", w:"12%"},
                       {col:"pct",   label:t.colChange,align:"right", w:"12%"},
-                      {col:null,    label:t.colTrend, align:"center",w:"10%",cls:"hide-mobile"},
+                      ...(showTrendColumn ? [{col:null, label:t.colTrend, align:"center", w:"10%", cls:"hide-mobile"}] : []),
                       {col:"vol",   label:t.colVol,   align:"right", w:"13%",cls:"hide-mobile"},
-                      {col:"cap",   label:t.colCap,   align:"right", w:"13%",cls:"hide-mobile"},
+                      ...(showCapColumn ? [{col:"cap", label:t.colCap, align:"right", w:"13%", cls:"hide-mobile"}] : []),
                       {col:null,    label:"",          align:"center",w:"6%",cls:"hide-mobile"},
                     ].map((h,i)=>(
                       <th key={i} className={`market-th ${h.col?"th":""} ${h.cls||""}`}
@@ -793,7 +762,7 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
                 <tbody>
                   {loading
                     ? Array(8).fill(0).map((_,i)=>(
-                      <tr key={i}><td colSpan={7} style={{padding:"10px 16px"}}><Skeleton h={18}/></td></tr>
+                      <tr key={i}><td colSpan={showTrendColumn && showCapColumn ? 7 : showTrendColumn || showCapColumn ? 6 : 5} style={{padding:"10px 16px"}}><Skeleton h={18}/></td></tr>
                     ))
                     : visible.map((s,i)=>(
                       <tr key={s.symbol} className="tr fu" onClick={()=>openModal(s)}
@@ -818,11 +787,15 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
                         <td className="market-td" style={{padding:"11px 16px",textAlign:"right"}}>
                           <span className="market-change" style={chgPill(s.pct)}>{s.pct>=0?"▲":"▼"} {Math.abs(s.pct).toFixed(2)}%</span>
                         </td>
-                        <td className="market-td hide-mobile" style={{padding:"11px 16px",textAlign:"center"}}>
-                          <Spark data={SparkData(s)} pos={s.pct>=0}/>
-                        </td>
+                        {showTrendColumn&&(
+                          <td className="market-td hide-mobile" style={{padding:"11px 16px",textAlign:"center"}}>
+                            <Spark data={SparkData(s)} pos={s.pct>=0}/>
+                          </td>
+                        )}
                         <td className="market-td hide-mobile" style={{padding:"11px 16px",textAlign:"right",fontSize:12,color:C.text2,fontFamily:"'DM Mono',monospace"}}>{s.vol}</td>
-                        <td className="market-td hide-mobile" style={{padding:"11px 16px",textAlign:"right",fontSize:12,color:C.text2,fontFamily:"'DM Mono',monospace"}}>{s.cap}</td>
+                        {showCapColumn&&(
+                          <td className="market-td hide-mobile" style={{padding:"11px 16px",textAlign:"right",fontSize:12,color:C.text2,fontFamily:"'DM Mono',monospace"}}>{s.cap}</td>
+                        )}
                         <td className="market-td hide-mobile" style={{padding:"11px 16px",textAlign:"center"}}>
                           <span className="star" onClick={e=>{e.stopPropagation();toggleWatch(s.symbol);}}
                             style={{fontSize:16,color:watch.includes(s.symbol)?C.gold:C.border2}}>
@@ -862,10 +835,8 @@ input:focus{outline:none;border-color:${C.accent}!important;box-shadow:0 0 0 3px
                         {s.region==="ASX"?"A$":"$"}{s.price?.toFixed(2)}
                       </div>
                       <span style={chgPill(s.pct)}>{s.pct>=0?"▲":"▼"} {Math.abs(s.pct).toFixed(2)}%</span>
-                      <div style={{marginTop:10,background:s.pct>=0?C.greenBg:C.redBg,padding:"4px 8px",borderRadius:6}}>
-                        <Spark data={SparkData(s)} pos={s.pct>=0} w={200} h={50}/>
-                      </div>
-                      <div style={{marginTop:8,fontSize:11,color:C.text3}}>{t.mktCap} {s.cap}</div>
+                      <div style={{marginTop:8,fontSize:11,color:C.text3}}>{t.vol} {s.vol}</div>
+                      {s.cap && s.cap !== "N/A" && <div style={{marginTop:4,fontSize:11,color:C.text3}}>{t.mktCap} {s.cap}</div>}
                     </div>
                   ))}
                 </div>
